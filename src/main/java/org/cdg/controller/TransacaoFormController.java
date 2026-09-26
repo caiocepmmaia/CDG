@@ -1,0 +1,119 @@
+package org.cdg.controller;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.TextField;
+import javafx.stage.Stage;
+import org.cdg.model.*;
+import org.cdg.repository.CartaoRepository;
+import org.cdg.repository.CategoriaRepository;
+import org.cdg.repository.TransacaoRepository;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+public class TransacaoFormController {
+
+    @FXML private ComboBox<String> cbTipo;
+    @FXML private ComboBox<Cartao> cbCartao;
+    @FXML private ComboBox<Categoria> cbCategoria;
+    @FXML private TextField txtDescricao;
+    @FXML private TextField txtValor;
+    @FXML private TextField txtData;
+    @FXML private TextField txtParcelas;
+    @FXML private CheckBox chkReembolsavel;
+
+    @FXML
+    public void initialize() {
+        cbTipo.getSelectionModel().select("DESPESA");
+
+        CartaoRepository cartaoRepo = new CartaoRepository();
+        cbCartao.getItems().addAll(cartaoRepo.listarTodos());
+        if (!cbCartao.getItems().isEmpty()) cbCartao.getSelectionModel().selectFirst();
+
+        CategoriaRepository catRepo = new CategoriaRepository();
+        cbCategoria.getItems().addAll(catRepo.listarTodas());
+        if (!cbCategoria.getItems().isEmpty()) cbCategoria.getSelectionModel().selectFirst();
+
+        txtData.setText(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+    }
+
+    @FXML
+    public void salvarTransacao() {
+        try {
+            String tipoSelecionado = cbTipo.getValue();
+            Cartao cartaoSelecionado = cbCartao.getValue();
+            Categoria categoriaSelecionada = cbCategoria.getValue();
+
+            if (cartaoSelecionado == null) throw new Exception("Selecione um cartão.");
+            if (categoriaSelecionada == null) throw new Exception("Selecione uma categoria.");
+
+            String descricaoOriginal = txtDescricao.getText();
+            double valorTotal = Double.parseDouble(txtValor.getText().replace(",", "."));
+
+            LocalDate dataInicial;
+            try {
+                String textoData = txtData.getText().trim();
+
+                if (textoData.matches("\\d{2}/\\d{2}/\\d{2}")) {
+                    textoData = textoData.substring(0, 6) + "20" + textoData.substring(6);
+                }
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                dataInicial = LocalDate.parse(textoData, formatter);
+            } catch (Exception e) {
+                throw new Exception("Formato de data inválido. Use DD/MM/AAAA (ex: 26/09/2026 ou 26/09/26).");
+            }
+
+            int totalParcelas = 1;
+            try {
+                totalParcelas = Integer.parseInt(txtParcelas.getText());
+                if (totalParcelas < 1) totalParcelas = 1;
+            } catch (NumberFormatException e) {
+                totalParcelas = 1;
+            }
+
+            double valorParcela = valorTotal / totalParcelas;
+
+            Conta contaBase = Conta.builder().idConta(1).build();
+            Titular titularBase = Titular.builder().idTitular(1).build();
+
+            TransacaoRepository repo = new TransacaoRepository();
+
+            for (int i = 1; i <= totalParcelas; i++) {
+                String descricaoFormatada = totalParcelas > 1 ? descricaoOriginal + " (" + i + "/" + totalParcelas + ")" : descricaoOriginal;
+                LocalDate dataParcela = dataInicial.plusMonths(i - 1);
+
+                Transacao parcela = Transacao.builder()
+                        .descricao(descricaoFormatada)
+                        .valor(valorParcela)
+                        .dataRegisto(LocalDate.now())
+                        .dataCobranca(dataParcela)
+                        .parcelaAtual(i)
+                        .totalParcelas(totalParcelas)
+                        .status("PENDENTE")
+                        .tipo(tipoSelecionado)
+                        .cartao(cartaoSelecionado)
+                        .categoria(categoriaSelecionada)
+                        .reembolsavel(chkReembolsavel.isSelected())
+                        .conta(contaBase)
+                        .titular(titularBase)
+                        .build();
+
+                repo.salvar(parcela);
+            }
+
+            Stage stage = (Stage) txtDescricao.getScene().getWindow();
+            stage.close();
+
+        } catch (Exception e) {
+            Alert alerta = new Alert(Alert.AlertType.ERROR);
+            alerta.setTitle("Erro");
+            alerta.setHeaderText("Falha ao salvar");
+            alerta.setContentText("Verifique se preencheu os campos corretamente.\n" + e.getMessage());
+            alerta.showAndWait();
+        }
+    }
+}

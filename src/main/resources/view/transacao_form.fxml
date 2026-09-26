@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+
+<VBox spacing="20" alignment="CENTER" prefWidth="420" prefHeight="500"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.cdg.controller.TransacaoFormController"
+      style="-fx-padding: 25;">
+
+    <Label text="Registar Nova Transação" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+    <GridPane hgap="10" vgap="15" alignment="CENTER">
+        <Label text="Tipo:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <ComboBox fx:id="cbTipo" GridPane.columnIndex="1" GridPane.rowIndex="0" prefWidth="220">
+            <items>
+                <FXCollections fx:factory="observableArrayList">
+                    <String fx:value="DESPESA" />
+                    <String fx:value="RECEITA" />
+                    <String fx:value="INVESTIMENTO" />
+                </FXCollections>
+            </items>
+        </ComboBox>
+
+        <Label text="Cartão/Origem:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <ComboBox fx:id="cbCartao" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="220" />
+
+        <Label text="Categoria:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <ComboBox fx:id="cbCategoria" GridPane.columnIndex="1" GridPane.rowIndex="2" prefWidth="220" />
+
+        <Label text="Descrição:" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <TextField fx:id="txtDescricao" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="220"/>
+
+        <Label text="Valor (R$):" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+        <TextField fx:id="txtValor" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="220" promptText="Ex: 600.00"/>
+
+        <Label text="Data Cobrança:" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <TextField fx:id="txtData" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="220" promptText="DD/MM/AAAA"/>
+
+        <Label text="Parcelas:" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <TextField fx:id="txtParcelas" GridPane.columnIndex="1" GridPane.rowIndex="6" prefWidth="220" text="1"/>
+
+        <Label text="Corporativo:" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+        <CheckBox fx:id="chkReembolsavel" text="Despesa Reembolsável" GridPane.columnIndex="1" GridPane.rowIndex="7"/>
+    </GridPane>
+
+    <Button text="Guardar Transação" onAction="#salvarTransacao"
+            style="-fx-background-color: #00796b; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 25; -fx-cursor: hand;"/>
+</VBox>

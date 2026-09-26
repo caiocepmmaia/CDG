@@ -1,0 +1,160 @@
+/* ==========================================================================
+   INTELLIJ / COSMIC DARK THEME - DASHBOARD FINANCEIRO
+   ========================================================================== */
+
+.root {
+    -fx-font-family: "Segoe UI", "Ubuntu", "Helvetica", sans-serif;
+    -fx-base: #1e1f22;
+    -fx-background-color: #1e1f22;
+    -fx-text-fill: #bcbec4;
+}
+
+.label {
+    -fx-text-fill: #bcbec4;
+}
+
+/* --- TOPO / MENU (TabPane) --- */
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #18191c;
+}
+
+.tab {
+    -fx-background-color: #2b2d30;
+    -fx-background-radius: 6 6 0 0;
+    -fx-padding: 8 18;
+}
+
+.tab:selected {
+    -fx-background-color: #1e1f22;
+    -fx-font-weight: bold;
+    -fx-border-color: #3574f0 transparent transparent transparent;
+    -fx-border-width: 2 0 0 0;
+}
+
+.tab .tab-label {
+    -fx-text-fill: #dfe1e5;
+}
+
+/* --- BLOCOS DE RESUMO DO TOPO (CARDS ESCUROS E ELEGANTES) --- */
+.card-resumo-sobra {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 15;
+    -fx-background-radius: 8;
+    -fx-border-color: #00875a;
+    -fx-border-radius: 8;
+    -fx-border-width: 0 0 0 4;
+}
+
+.card-resumo-deficit {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 15;
+    -fx-background-radius: 8;
+    -fx-border-color: #e06c75;
+    -fx-border-radius: 8;
+    -fx-border-width: 0 0 0 4;
+}
+
+.card-resumo-reembolso {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 15;
+    -fx-background-radius: 8;
+    -fx-border-color: #986fe2;
+    -fx-border-radius: 8;
+    -fx-border-width: 0 0 0 4;
+}
+
+.card-resumo-investido {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 15;
+    -fx-background-radius: 8;
+    -fx-border-color: #3574f0;
+    -fx-border-radius: 8;
+    -fx-border-width: 0 0 0 4;
+}
+
+/* --- BLOCOS DE GASTOS POR CARTÃO E CATEGORIA --- */
+.card-cartao {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 10;
+    -fx-background-radius: 6;
+    -fx-border-color: #393b40;
+    -fx-border-radius: 6;
+}
+
+.card-categoria {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 10;
+    -fx-background-radius: 6;
+    -fx-border-color: #393b40;
+    -fx-border-radius: 6;
+}
+
+/* --- TABELAS (TableView) --- */
+.table-view {
+    -fx-background-color: #1e1f22;
+    -fx-background-radius: 8;
+    -fx-border-color: #2b2d30;
+    -fx-border-radius: 8;
+    -fx-padding: 2;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #2b2d30;
+    -fx-background-radius: 8 8 0 0;
+}
+
+.table-view .column-header {
+    -fx-background-color: #2b2d30;
+    -fx-font-weight: bold;
+    -fx-text-fill: #a1a1a6;
+    -fx-border-color: #393b40;
+    -fx-padding: 10 8;
+}
+
+.table-row-cell {
+    -fx-background-color: #1e1f22;
+    -fx-text-background-color: #bcbec4;
+    -fx-border-color: transparent transparent #25272b transparent;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #212225;
+}
+
+.table-row-cell:filled:selected {
+    -fx-background-color: #28456d;
+    -fx-text-background-color: white;
+}
+
+/* Garante a cor clara nas células internas da tabela */
+.table-cell {
+    -fx-text-fill: #bcbec4;
+}
+
+/* --- BOTÕES --- */
+.button {
+    -fx-background-color: #3574f0;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: #2b5ec4;
+}
+
+/* --- CAMPOS DE TEXTO E COMBOBOX --- */
+.text-field, .combo-box {
+    -fx-background-color: #2b2d30;
+    -fx-text-fill: #bcbec4;
+    -fx-background-radius: 6;
+    -fx-border-color: #393b40;
+    -fx-border-radius: 6;
+    -fx-padding: 6;
+}
+
+.text-field:focused, .combo-box:focused {
+    -fx-border-color: #3574f0;
+}
