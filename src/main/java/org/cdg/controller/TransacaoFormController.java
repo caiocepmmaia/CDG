@@ -85,10 +85,28 @@ public class TransacaoFormController {
             TransacaoRepository repo = new TransacaoRepository();
 
             if (transacaoParaEditar != null) {
-                // MODO EDIÇÃO: Atualiza o registo existente sem criar novas parcelas
+                // MODO EDIÇÃO: Atualiza o registo existente recalculando a cobrança com base na nova data de compra
+                LocalDate dataCobrancaEditada = dataInicial;
+                if (cartaoSelecionado != null && cartaoSelecionado.getDiaFechamento() > 0) {
+                    int diaCompra = dataInicial.getDayOfMonth();
+                    int diaFechamento = cartaoSelecionado.getDiaFechamento();
+                    int diaVencimento = cartaoSelecionado.getDiaVencimento();
+                    LocalDate mesFatura = dataInicial;
+
+                    if (diaCompra > diaFechamento) {
+                        mesFatura = mesFatura.plusMonths(1);
+                    }
+                    if (diaVencimento < diaFechamento) {
+                        mesFatura = mesFatura.plusMonths(1);
+                    }
+                    int diaAjustado = Math.min(diaVencimento, mesFatura.lengthOfMonth());
+                    dataCobrancaEditada = mesFatura.withDayOfMonth(diaAjustado);
+                }
+
                 transacaoParaEditar.setDescricao(descricaoOriginal);
                 transacaoParaEditar.setValor(valorTotal);
-                transacaoParaEditar.setDataCobranca(dataInicial);
+                transacaoParaEditar.setDataRegisto(dataInicial); // <--- Atualiza a data da compra
+                transacaoParaEditar.setDataCobranca(dataCobrancaEditada); // <--- Atualiza a cobrança calculada
                 transacaoParaEditar.setTipo(tipoSelecionado);
                 transacaoParaEditar.setCartao(cartaoSelecionado);
                 transacaoParaEditar.setCategoria(categoriaSelecionada);
@@ -106,13 +124,8 @@ public class TransacaoFormController {
                 }
 
                 // --- DIVISÃO FINANCEIRA EXATA ---
-                // 1. Parcela base arredondada para baixo (2 casas decimais)
                 BigDecimal valorParcelaBase = valorTotal.divide(BigDecimal.valueOf(totalParcelas), 2, RoundingMode.DOWN);
-
-                // 2. Soma das parcelas base
                 BigDecimal somaBase = valorParcelaBase.multiply(BigDecimal.valueOf(totalParcelas));
-
-                // 3. Diferença de centavos (resto)
                 BigDecimal diferencaCentavos = valorTotal.subtract(somaBase);
 
                 Conta contaBase = Conta.builder().idConta(1).build();
@@ -120,16 +133,40 @@ public class TransacaoFormController {
 
                 for (int i = 1; i <= totalParcelas; i++) {
                     String descricaoFormatada = totalParcelas > 1 ? descricaoOriginal + " (" + i + "/" + totalParcelas + ")" : descricaoOriginal;
-                    LocalDate dataParcela = dataInicial.plusMonths(i - 1);
 
-                    // A primeira parcela (i == 1) absorve a diferença de centavos
+                    // Data da compra desta parcela específica (somando meses para parcelamentos)
+                    LocalDate dataCompraParcela = dataInicial.plusMonths(i - 1);
+                    LocalDate dataCobrancaFinal = dataCompraParcela;
+
+                    // --- CÁLCULO AUTOMÁTICO DE FATURA COM BASE NO DIA DE FECHAMENTO E VENCIMENTO ---
+                    if (cartaoSelecionado != null && cartaoSelecionado.getDiaFechamento() > 0) {
+                        int diaCompra = dataCompraParcela.getDayOfMonth();
+                        int diaFechamento = cartaoSelecionado.getDiaFechamento();
+                        int diaVencimento = cartaoSelecionado.getDiaVencimento();
+
+                        LocalDate mesFatura = dataCompraParcela;
+
+                        // REGRA 1: Se a compra foi feita após o fechamento, passa para o ciclo seguinte
+                        if (diaCompra > diaFechamento) {
+                            mesFatura = mesFatura.plusMonths(1);
+                        }
+
+                        // REGRA 2: Se o vencimento é MENOR que o fechamento, o pagamento ocorre no mês seguinte
+                        if (diaVencimento < diaFechamento) {
+                            mesFatura = mesFatura.plusMonths(1);
+                        }
+
+                        int diaAjustado = Math.min(diaVencimento, mesFatura.lengthOfMonth());
+                        dataCobrancaFinal = mesFatura.withDayOfMonth(diaAjustado);
+                    }
+
                     BigDecimal valorEstaParcela = (i == 1) ? valorParcelaBase.add(diferencaCentavos) : valorParcelaBase;
 
                     Transacao parcela = Transacao.builder()
                             .descricao(descricaoFormatada)
                             .valor(valorEstaParcela)
-                            .dataRegisto(LocalDate.now())
-                            .dataCobranca(dataParcela)
+                            .dataRegisto(dataCompraParcela) // <--- GRAVA A DATA DA COMPRA CORRETA
+                            .dataCobranca(dataCobrancaFinal) // <--- GRAVA A DATA DE COBRANÇA CALCULADA
                             .parcelaAtual(i)
                             .totalParcelas(totalParcelas)
                             .status("PENDENTE")
@@ -165,7 +202,11 @@ public class TransacaoFormController {
             cbCategoria.setValue(t.getCategoria());
             txtDescricao.setText(t.getDescricao());
             txtValor.setText(t.getValor().toString());
-            txtData.setText(t.getDataCobranca().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+
+            // Exibe a Data da Compra (dataRegisto) no formulário ao editar, se disponível
+            LocalDate dataExibir = t.getDataRegisto() != null ? t.getDataRegisto() : t.getDataCobranca();
+            txtData.setText(dataExibir.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+
             txtParcelas.setText(String.valueOf(t.getTotalParcelas()));
             txtParcelas.setDisable(true);
             chkReembolsavel.setSelected(t.isReembolsavel());

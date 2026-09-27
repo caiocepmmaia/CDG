@@ -11,11 +11,12 @@ import java.util.List;
 public class CartaoRepository {
 
     public void salvar(Cartao cartao) throws SQLException {
-        String sql = "INSERT INTO tb_cartao (nome, dia_vencimento) VALUES (?, ?)";
+        String sql = "INSERT INTO tb_cartao (nome, dia_vencimento, dia_fechamento) VALUES (?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, cartao.getNome());
             pstmt.setInt(2, cartao.getDiaVencimento());
+            pstmt.setInt(3, cartao.getDiaFechamento());
             pstmt.executeUpdate();
         }
     }
@@ -31,6 +32,7 @@ public class CartaoRepository {
                         .idCartao(rs.getInt("id_cartao"))
                         .nome(rs.getString("nome"))
                         .diaVencimento(rs.getInt("dia_vencimento"))
+                        .diaFechamento(rs.getInt("dia_fechamento")) // <--- Incluído na listagem
                         .build();
                 lista.add(c);
             }
@@ -41,12 +43,13 @@ public class CartaoRepository {
     }
 
     public void atualizar(Cartao cartao) throws SQLException {
-        String sql = "UPDATE tb_cartao SET nome = ?, dia_vencimento = ? WHERE id_cartao = ?";
+        String sql = "UPDATE tb_cartao SET nome = ?, dia_vencimento = ?, dia_fechamento = ? WHERE id_cartao = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, cartao.getNome());
             pstmt.setInt(2, cartao.getDiaVencimento());
-            pstmt.setInt(3, cartao.getIdCartao());
+            pstmt.setInt(3, cartao.getDiaFechamento());
+            pstmt.setInt(4, cartao.getIdCartao());
             pstmt.executeUpdate();
         }
     }
@@ -59,6 +62,7 @@ public class CartaoRepository {
             pstmt.executeUpdate();
         }
     }
+
     public List<GastoAgrupadoDTO> obterFaturasPorMes(LocalDate mes) throws SQLException {
         LocalDate inicioMes = mes.withDayOfMonth(1);
         LocalDate fimMes = mes.withDayOfMonth(mes.lengthOfMonth());

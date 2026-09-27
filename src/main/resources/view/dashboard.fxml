@@ -89,8 +89,9 @@
 
                 <TableView fx:id="tabelaTransacoes" VBox.vgrow="ALWAYS">
                     <columns>
-                        <TableColumn fx:id="colData" text="Data" prefWidth="100"/>
-                        <TableColumn fx:id="colDescricao" text="Descrição" prefWidth="250"/>
+                        <TableColumn fx:id="colDataCompra" text="Data Compra" prefWidth="100"/>
+                        <TableColumn fx:id="colData" text="Data Cobrança" prefWidth="100"/>
+                        <TableColumn fx:id="colDescricao" text="Descrição" prefWidth="200"/>
                         <TableColumn fx:id="colCartao" text="Cartão" prefWidth="120"/>
                         <TableColumn fx:id="colCategoria" text="Categoria" prefWidth="120"/>
                         <TableColumn fx:id="colValor" text="Valor" prefWidth="120"/>
@@ -109,6 +110,8 @@
                 <HBox spacing="10" alignment="CENTER_LEFT">
                     <TextField fx:id="txtNomeCartao" promptText="Nome do Cartão (ex: Nubank)"/>
                     <TextField fx:id="txtDiaVencimento" promptText="Dia Vencimento (1-31)" prefWidth="150"/>
+                    <!-- NOVO CAMPO ADICIONADO AQUI: -->
+                    <TextField fx:id="txtDiaFechamento" promptText="Dia Fechamento (1-31)" prefWidth="150"/>
                     <Button text="Salvar Cartão" onAction="#salvarCartao" style="-fx-background-color: #3574f0; -fx-text-fill: white; -fx-cursor: hand;"/>
                     <Button text="Excluir Cartão" onAction="#excluirCartao" style="-fx-background-color: #2b2d30; -fx-text-fill: #f75454; -fx-cursor: hand;"/>
                 </HBox>
@@ -117,6 +120,8 @@
                     <columns>
                         <TableColumn fx:id="colCartaoNome" text="Nome do Cartão" prefWidth="200"/>
                         <TableColumn fx:id="colCartaoVencimento" text="Dia do Vencimento" prefWidth="150"/>
+                        <!-- NOVA COLUNA ADICIONADA AQUI: -->
+                        <TableColumn fx:id="colCartaoFechamento" text="Dia do Fechamento" prefWidth="150"/>
                     </columns>
                     <columnResizePolicy>
                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>

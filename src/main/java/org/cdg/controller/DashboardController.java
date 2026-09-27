@@ -43,6 +43,7 @@ public class DashboardController {
     @FXML private HBox boxGastosCategorias;
 
     @FXML private TableView<Transacao> tabelaTransacoes;
+    @FXML private TableColumn<Transacao, String> colDataCompra;
     @FXML private TableColumn<Transacao, String> colData;
     @FXML private TableColumn<Transacao, String> colDescricao;
     @FXML private TableColumn<Transacao, String> colCartao;
@@ -53,9 +54,11 @@ public class DashboardController {
     // --- ELEMENTOS DA ABA CARTÕES ---
     @FXML private TextField txtNomeCartao;
     @FXML private TextField txtDiaVencimento;
+    @FXML private TextField txtDiaFechamento;
     @FXML private TableView<Cartao> tabelaCartoes;
     @FXML private TableColumn<Cartao, String> colCartaoNome;
     @FXML private TableColumn<Cartao, Integer> colCartaoVencimento;
+    @FXML private TableColumn<Cartao, Integer> colCartaoFechamento;
 
     // --- ELEMENTOS DA ABA CATEGORIAS ---
     @FXML private TextField txtNomeCategoria;
@@ -95,6 +98,7 @@ public class DashboardController {
                 cartaoParaEditar = novo;
                 txtNomeCartao.setText(novo.getNome());
                 txtDiaVencimento.setText(String.valueOf(novo.getDiaVencimento()));
+                txtDiaFechamento.setText(String.valueOf(novo.getDiaFechamento())); // PREENCHE O NOVO CAMPO
             }
         });
 
@@ -220,8 +224,17 @@ public class DashboardController {
 
     private void configurarColunas() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        colData.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDataCobranca().format(formatter)));
+
         colDescricao.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDescricao()));
+
+        colDataCompra.setCellValueFactory(cellData -> {
+            LocalDate d = cellData.getValue().getDataRegisto();
+            return new SimpleStringProperty(d != null ? d.format(formatter) : "-");
+        });
+        colData.setCellValueFactory(cellData -> {
+            LocalDate d = cellData.getValue().getDataCobranca();
+            return new SimpleStringProperty(d != null ? d.format(formatter) : "-");
+        });
 
         colCartao.setCellValueFactory(cellData -> {
             if (cellData.getValue().getCartao() != null && cellData.getValue().getCartao().getNome() != null) {
@@ -541,6 +554,7 @@ public class DashboardController {
     private void configurarColunasCartoes() {
         colCartaoNome.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getNome()));
         colCartaoVencimento.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().getDiaVencimento()));
+        colCartaoFechamento.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().getDiaFechamento())); // NOVA COLUNA
     }
 
     private void carregarDadosCartoes() {
@@ -552,26 +566,30 @@ public class DashboardController {
     public void salvarCartao() {
         try {
             String nome = txtNomeCartao.getText();
-            String diaTexto = txtDiaVencimento.getText();
+            String diaVencTexto = txtDiaVencimento.getText();
+            String diaFechTexto = txtDiaFechamento.getText();
 
-            if (nome == null || nome.trim().isEmpty() || diaTexto == null || diaTexto.trim().isEmpty()) {
+            if (nome == null || nome.trim().isEmpty() || diaVencTexto == null || diaVencTexto.trim().isEmpty() || diaFechTexto == null || diaFechTexto.trim().isEmpty()) {
                 throw new Exception("Preencha todos os campos do cartão.");
             }
 
-            int dia = Integer.parseInt(diaTexto.trim());
+            int diaVenc = Integer.parseInt(diaVencTexto.trim());
+            int diaFech = Integer.parseInt(diaFechTexto.trim());
             CartaoRepository repo = new CartaoRepository();
 
             if (cartaoParaEditar != null) {
                 cartaoParaEditar.setNome(nome);
-                cartaoParaEditar.setDiaVencimento(dia);
+                cartaoParaEditar.setDiaVencimento(diaVenc);
+                cartaoParaEditar.setDiaFechamento(diaFech);
                 repo.atualizar(cartaoParaEditar);
                 cartaoParaEditar = null;
             } else {
-                repo.salvar(Cartao.builder().nome(nome).diaVencimento(dia).build());
+                repo.salvar(Cartao.builder().nome(nome).diaVencimento(diaVenc).diaFechamento(diaFech).build());
             }
 
             txtNomeCartao.clear();
             txtDiaVencimento.clear();
+            txtDiaFechamento.clear();
             carregarDadosCartoes();
             atualizarInterface();
         } catch (Exception e) {

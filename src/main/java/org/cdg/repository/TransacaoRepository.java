@@ -82,11 +82,16 @@ public class TransacaoRepository {
                         }
                     }
 
+                    // Tratamento seguro para as datas vindas do banco
+                    LocalDate dataRegisto = rs.getDate("data_registo") != null ? rs.getDate("data_registo").toLocalDate() : null;
+                    LocalDate dataCobranca = rs.getDate("data_cobranca") != null ? rs.getDate("data_cobranca").toLocalDate() : null;
+
                     Transacao t = Transacao.builder()
                             .idTransacao(rs.getInt("id_transacao"))
                             .descricao(rs.getString("descricao"))
                             .valor(valor)
-                            .dataCobranca(rs.getDate("data_cobranca").toLocalDate())
+                            .dataRegisto(dataRegisto)   // <--- ADICIONADO AQUI
+                            .dataCobranca(dataCobranca) // <--- ADICIONADO AQUI
                             .status(rs.getString("status"))
                             .tipo(tipo)
                             .reembolsavel(reembolsavel)

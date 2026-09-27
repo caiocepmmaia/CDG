@@ -42,7 +42,7 @@
         <Label text="Valor (R$):" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
         <TextField fx:id="txtValor" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="220" promptText="Ex: 600.00"/>
 
-        <Label text="Data Cobrança:" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <Label text="Data da Compra:" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
         <TextField fx:id="txtData" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="220" promptText="DD/MM/AAAA"/>
 
         <Label text="Parcelas:" GridPane.columnIndex="0" GridPane.rowIndex="6"/>

@@ -32,20 +32,16 @@
   </component>
   <component name="DBNavigator.Project.DatabaseConsoleManager">
     <connection id="0d2fd5ad-31f7-41c0-8eac-d0916aac7113">
-      <console name="CDG" type="STANDARD" schema="main" session="Main"><![CDATA[CREATE TABLE IF NOT EXISTS tb_meta (
-    id_meta INTEGER PRIMARY KEY AUTOINCREMENT,
-    descricao TEXT NOT NULL,
-    valor_alvo DECIMAL(15,2) NOT NULL,
-    valor_atual DECIMAL(15,2) DEFAULT 0.00,
-    data_limite DATE NOT NULL
-);]]></console>
+      <console name="CDG" type="STANDARD" schema="main" session="Main"><![CDATA[ALTER TABLE tb_cartao ADD COLUMN dia_fechamento INTEGER;]]></console>
     </connection>
   </component>
   <component name="DBNavigator.Project.DatabaseEditorStateManager">
     <last-used-providers />
   </component>
   <component name="DBNavigator.Project.DatabaseFileManager">
-    <open-files />
+    <open-files>
+      <object connection-id="0d2fd5ad-31f7-41c0-8eac-d0916aac7113" object-ref="consoles/CDG" />
+    </open-files>
   </component>
   <component name="DBNavigator.Project.DatabasePrerequisiteManager">
     <prerequisites />

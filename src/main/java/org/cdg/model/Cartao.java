@@ -1,19 +1,22 @@
 package org.cdg.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Cartao {
     private int idCartao;
     private String nome;
     private int diaVencimento;
+    private int diaFechamento;
 
-    // Este método é importante para quando o cartão aparecer na caixinha de seleção (ComboBox)
-    // do formulário de transações mais tarde, ele mostrar o nome e não o endereço de memória.
     @Override
     public String toString() {
-        return nome + " (Vence dia " + diaVencimento + ")";
+        return nome; // <--- Isto força o ComboBox a mostrar apenas o nome limpo do cartão!
     }
 }
