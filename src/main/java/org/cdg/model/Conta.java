@@ -5,15 +5,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Conta {
     private Integer idConta;
     private String nome;
-    private String tipoConta; // "CORRENTE" ou "CREDITO"
-    private Double saldoInicial;
-    private Integer diaFecho;     // Apenas para crédito
-    private Integer diaVencimento; // Apenas para crédito
+    private BigDecimal saldoInicial;
+    private BigDecimal saldoAtual;
 }

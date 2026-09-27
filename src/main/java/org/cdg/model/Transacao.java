@@ -2,6 +2,8 @@ package org.cdg.model;
 
 import lombok.Builder;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -9,7 +11,7 @@ import java.time.LocalDate;
 public class Transacao {
     private int idTransacao;
     private String descricao;
-    private double valor;
+    private BigDecimal valor;
     private LocalDate dataRegisto;
     private LocalDate dataCobranca;
     private int parcelaAtual;

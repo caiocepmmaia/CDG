@@ -25,6 +25,30 @@ public class CartaoRepository {
         }
     }
 
+    public void atualizar(Cartao c) {
+        String sql = "UPDATE tb_cartao SET nome = ?, dia_vencimento = ? WHERE id_cartao = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, c.getNome());
+            pstmt.setInt(2, c.getDiaVencimento());
+            pstmt.setInt(3, c.getIdCartao());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Erro ao atualizar cartão: " + e.getMessage());
+        }
+    }
+
+    public void excluir(int idCartao) {
+        String sql = "DELETE FROM tb_cartao WHERE id_cartao = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, idCartao);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Erro ao excluir cartão (verifique se existem transações associadas): " + e.getMessage());
+        }
+    }
+
     public List<Cartao> listarTodos() {
         List<Cartao> lista = new ArrayList<>();
         String sql = "SELECT * FROM tb_cartao ORDER BY id_cartao ASC";

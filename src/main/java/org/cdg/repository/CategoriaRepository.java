@@ -24,6 +24,29 @@ public class CategoriaRepository {
         }
     }
 
+    public void atualizar(Categoria c) {
+        String sql = "UPDATE tb_categoria SET nome = ? WHERE id_categoria = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, c.getNome());
+            pstmt.setInt(2, c.getIdCategoria());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Erro ao atualizar categoria: " + e.getMessage());
+        }
+    }
+
+    public void excluir(int idCategoria) {
+        String sql = "DELETE FROM tb_categoria WHERE id_categoria = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, idCategoria);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Erro ao excluir categoria: " + e.getMessage());
+        }
+    }
+
     public List<Categoria> listarTodas() {
         List<Categoria> lista = new ArrayList<>();
         String sql = "SELECT * FROM tb_categoria ORDER BY id_categoria ASC";

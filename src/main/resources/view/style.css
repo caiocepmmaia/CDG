@@ -158,3 +158,69 @@
 .text-field:focused, .combo-box:focused {
     -fx-border-color: #3574f0;
 }
+
+/* --- PROGRESS BAR NAS TABELAS --- */
+.progress-bar {
+    -fx-indeterminate-bar-length: 60;
+    -fx-background-color: #2b2d30;
+    -fx-background-radius: 4;
+    -fx-padding: 2;
+}
+
+.progress-bar .track {
+    -fx-background-color: #1e1f22;
+    -fx-background-radius: 4;
+}
+
+.progress-bar .bar {
+    -fx-background-radius: 3;
+    -fx-padding: 3;
+}
+
+/* --- PROGRESS INDICATOR (CÍRCULOS DE META) --- */
+.progress-indicator {
+    -fx-progress-color: #3574f0;
+}
+
+.progress-indicator .percentage {
+    -fx-fill: #ffffff;
+    -fx-font-size: 9px;
+    -fx-font-weight: bold;
+}
+
+.progress-indicator .circle {
+    -fx-stroke: #2b2d30;
+}
+
+/* --- CARDS DE RESUMO DO TOPO --- */
+.card-resumo {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 10 14;
+    -fx-background-radius: 8;
+    -fx-border-color: #3c3f41;
+    -fx-border-radius: 8;
+}
+/* --- PROGRESS INDICATOR (CÍRCULOS DE META) --- */
+.progress-indicator {
+    -fx-progress-color: #3574f0;
+}
+
+.progress-indicator .percentage {
+    -fx-fill: #ffffff;
+    -fx-font-size: 9px;
+    -fx-font-weight: bold;
+}
+
+.progress-indicator .circle {
+    -fx-stroke: #2b2d30;
+}
+
+/* --- CARDS DE RESUMO DO TOPO --- */
+.card-resumo {
+    -fx-background-color: #2b2d30;
+    -fx-padding: 10 14;
+    -fx-background-radius: 8;
+    -fx-border-color: #3c3f41;
+    -fx-border-radius: 8;
+}
+

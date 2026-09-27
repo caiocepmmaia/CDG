@@ -1,95 +1,125 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.TabPane?>
-<?import javafx.scene.control.Tab?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<TabPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+<TabPane xmlns="http://javafx.com/javafx"
+         xmlns:fx="http://javafx.com/fxml"
          fx:controller="org.cdg.controller.DashboardController"
-         prefWidth="1000" prefHeight="650" tabClosingPolicy="UNAVAILABLE">
+         tabClosingPolicy="UNAVAILABLE"
+         prefWidth="1100" prefHeight="720">
 
     <!-- ABA 1: DASHBOARD PRINCIPAL -->
     <Tab text="Dashboard Principal">
-        <VBox spacing="20" alignment="TOP_CENTER" style="-fx-padding: 20;">
+        <VBox spacing="16" style="-fx-padding: 20; -fx-background-color: #1e1f22;">
 
-            <HBox alignment="CENTER_LEFT" spacing="20">
-                <Label text="Resumo Mensal" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                <Region HBox.hgrow="ALWAYS" />
-                <Button text="+ Nova Transação" onAction="#abrirFormulario"/>
+            <!-- TOPO: RESUMO FINANCEIRO + CARDS DE METAS EM CÍRCULO -->
+            <HBox spacing="15" alignment="CENTER_LEFT">
+                <!-- CARDS DE SALDO -->
+                <HBox spacing="12" HBox.hgrow="ALWAYS">
+                    <!-- CARD 1: SOBRA DO MÊS -->
+                    <VBox styleClass="card-resumo" alignment="CENTER_LEFT" spacing="4" HBox.hgrow="ALWAYS">
+                        <Label text="Sobra do Mês" style="-fx-text-fill: #9da5b4; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                        <Label fx:id="lblSobra" text="R$ 0,00" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Button fx:id="btnInvestirSobra" text="✨ Investir Sobra" onAction="#investirSobra" visible="false" managed="false"
+                                style="-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-size: 10px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 4;"/>
+                    </VBox>
+
+                    <!-- CARD 2: DESPESAS DO MÊS -->
+                    <VBox styleClass="card-resumo" alignment="CENTER_LEFT" spacing="4" HBox.hgrow="ALWAYS">
+                        <Label text="Despesas do Mês" style="-fx-text-fill: #9da5b4; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                        <Label fx:id="lblDeficit" text="R$ 0,00" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f75454;"/>
+                    </VBox>
+
+                    <!-- CARD 3: A REEMBOLSAR -->
+                    <VBox styleClass="card-resumo" alignment="CENTER_LEFT" spacing="4" HBox.hgrow="ALWAYS">
+                        <Label text="A Reembolsar" style="-fx-text-fill: #9da5b4; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                        <Label fx:id="lblReembolso" text="R$ 0,00" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #e5c07b;"/>
+                    </VBox>
+
+                    <!-- CARD 4: TOTAL INVESTIDO -->
+                    <VBox styleClass="card-resumo" alignment="CENTER_LEFT" spacing="4" HBox.hgrow="ALWAYS">
+                        <Label text="Total Investido" style="-fx-text-fill: #9da5b4; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                        <Label fx:id="lblInvestido" text="R$ 0,00" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #61afef;"/>
+                    </VBox>
+                </HBox>
+
+                <!-- PAINEL CIRCULAR DE METAS (TOPO DIREITO) -->
+                <VBox spacing="4" style="-fx-background-color: #2b2d30; -fx-padding: 8 12; -fx-background-radius: 8; -fx-border-color: #3c3f41; -fx-border-radius: 8;">
+                    <Label text="🎯 Metas de Investimento" style="-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #bcbec4;"/>
+                    <ScrollPane fitToHeight="true" prefHeight="65" prefWidth="320" style="-fx-background-color: transparent; -fx-border-color: transparent;">
+                        <HBox fx:id="boxCardsMetas" spacing="12" alignment="CENTER_LEFT"/>
+                    </ScrollPane>
+                </VBox>
             </HBox>
 
-            <!-- Blocos de Resumo com as classes CSS escuras e harmoniosas -->
-            <HBox spacing="20" alignment="CENTER">
-                <VBox styleClass="card-resumo-sobra" prefWidth="220" alignment="CENTER" spacing="5">
-                    <Label text="Sobra / Disponível" style="-fx-font-size: 13px; -fx-text-fill: #858585;"/>
-                    <Label fx:id="lblSobra" text="R$ 0,00" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #00c853;"/>
-                    <Button fx:id="btnInvestirSobra" text="Aplicar Sobra ➔" onAction="#investirSobra"
-                            style="-fx-background-color: #00875a; -fx-font-size: 10px; -fx-padding: 4 8;" visible="false"/>
+            <!-- SEÇÃO DE BLOCOS HORIZONTAIS COM BOTÕES DE CADASTRO RÁPIDO -->
+            <VBox spacing="14">
+                <!-- BLOCO 1: GASTOS POR CATEGORIA -->
+                <VBox spacing="6" style="-fx-background-color: #2b2d30; -fx-padding: 10 14; -fx-background-radius: 8; -fx-border-color: #3c3f41; -fx-border-radius: 8;">
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <Label text="🏷️ Gastos por Categoria" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #ffffff;"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button text="+ Nova Categoria" onAction="#criarNovaCategoriaRapida" style="-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 4;"/>
+                    </HBox>
+                    <ScrollPane fitToHeight="true" prefHeight="75" style="-fx-background-color: transparent; -fx-border-color: transparent;">
+                        <HBox fx:id="boxGastosCategorias" spacing="12" alignment="CENTER_LEFT"/>
+                    </ScrollPane>
                 </VBox>
 
-                <VBox styleClass="card-resumo-deficit" prefWidth="220" alignment="CENTER" spacing="5">
-                    <Label text="Déficit / Despesas" style="-fx-font-size: 13px; -fx-text-fill: #858585;"/>
-                    <Label fx:id="lblDeficit" text="R$ 0,00" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #ff5252;"/>
+                <!-- BLOCO 2: FATURAS POR CARTÃO -->
+                <VBox spacing="6" style="-fx-background-color: #2b2d30; -fx-padding: 10 14; -fx-background-radius: 8; -fx-border-color: #3c3f41; -fx-border-radius: 8;">
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <Label text="💳 Faturas por Cartão" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #ffffff;"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button text="+ Novo Cartão" onAction="#criarNovoCartaoRapido" style="-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 4;"/>
+                    </HBox>
+                    <ScrollPane fitToHeight="true" prefHeight="75" style="-fx-background-color: transparent; -fx-border-color: transparent;">
+                        <HBox fx:id="boxFaturasCartoes" spacing="12" alignment="CENTER_LEFT"/>
+                    </ScrollPane>
                 </VBox>
+            </VBox>
 
-                <VBox styleClass="card-resumo-reembolso" prefWidth="220" alignment="CENTER" spacing="5">
-                    <Label text="A Receber (Empresa)" style="-fx-font-size: 13px; -fx-text-fill: #858585;"/>
-                    <Label fx:id="lblReembolso" text="R$ 0,00" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #b388ff;"/>
-                </VBox>
-
-                <VBox styleClass="card-resumo-investido" prefWidth="220" alignment="CENTER" spacing="5">
-                    <Label text="Total Investido (Global)" style="-fx-font-size: 13px; -fx-text-fill: #858585;"/>
-                    <Label fx:id="lblInvestido" text="R$ 0,00" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #448aff;"/>
-                </VBox>
+            <!-- NAVEGAÇÃO E AÇÕES DA TABELA -->
+            <HBox spacing="12" alignment="CENTER">
+                <Button text="‹ Mês Anterior" onAction="#mesAnterior" style="-fx-cursor: hand; -fx-background-color: #2b2d30; -fx-text-fill: #bcbec4;"/>
+                <Label fx:id="lblMesAno" text="09 / 2026" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #ffffff;"/>
+                <Button text="Próximo Mês ›" onAction="#mesSeguinte" style="-fx-cursor: hand; -fx-background-color: #2b2d30; -fx-text-fill: #bcbec4;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="📄 PDF Reembolsos" onAction="#gerarRelatorioReembolsos" style="-fx-background-color: #e5c07b; -fx-text-fill: #1e1f22; -fx-font-weight: bold; -fx-cursor: hand;"/>
+                <Button text="+ Nova Transação" onAction="#abrirFormulario" style="-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"/>
+                <Button text="Editar Selecionado" onAction="#editarTransacao" style="-fx-background-color: #3574f0; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"/>
+                <Button text="Excluir Selecionado" onAction="#excluirTransacao" style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"/>
             </HBox>
 
-            <!-- Faturas dos Cartões -->
-            <Label text="Gastos por Cartão:" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 5 0 0 0;"/>
-            <HBox fx:id="boxFaturasCartoes" spacing="15" alignment="CENTER" style="-fx-padding: 0 0 10 0;"/>
-
-            <!-- Gastos por Categoria -->
-            <Label text="Gastos por Categoria:" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 5 0 0 0;"/>
-            <HBox fx:id="boxGastosCategorias" spacing="15" alignment="CENTER" style="-fx-padding: 0 0 10 0;"/>
-
-            <!-- Navegador de Meses -->
-            <HBox spacing="15" alignment="CENTER" style="-fx-padding: 10 0 0 0;">
-                <Button text="&lt; Mês Anterior" onAction="#mesAnterior" style="-fx-cursor: hand;"/>
-                <Label fx:id="lblMesAno" text="Setembro 2026" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                <Button text="Próximo Mês &gt;" onAction="#mesSeguinte" style="-fx-cursor: hand;"/>
-            </HBox>
-
+            <!-- TABELA DE TRANSAÇÕES -->
             <TableView fx:id="tabelaTransacoes" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="colData" text="Cobrança" prefWidth="110"/>
+                    <TableColumn fx:id="colData" text="Data Cobrança" prefWidth="120"/>
                     <TableColumn fx:id="colDescricao" text="Descrição" prefWidth="280"/>
                     <TableColumn fx:id="colCartao" text="Cartão" prefWidth="140"/>
                     <TableColumn fx:id="colCategoria" text="Categoria" prefWidth="140"/>
-                    <TableColumn fx:id="colValor" text="Valor (R$)" prefWidth="130"/>
+                    <TableColumn fx:id="colValor" text="Valor" prefWidth="130"/>
                     <TableColumn fx:id="colStatus" text="Status" prefWidth="100"/>
                 </columns>
             </TableView>
         </VBox>
     </Tab>
 
-    <!-- ABA 2: GESTÃO DE CARTÕES -->
+    <!-- ABA 2: MEUS CARTÕES -->
     <Tab text="Meus Cartões">
         <HBox spacing="20" style="-fx-padding: 20;">
             <VBox spacing="15" prefWidth="300" style="-fx-padding: 20; -fx-background-color: #2b2d30; -fx-background-radius: 8;">
-                <Label text="Cadastrar Novo Cartão" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                <Label text="Gerir Cartão" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
                 <Label text="Nome (ex: Nubank, Itaú):"/>
                 <TextField fx:id="txtNomeCartao" promptText="Nome do Cartão"/>
                 <Label text="Dia de Vencimento (1 a 31):"/>
                 <TextField fx:id="txtDiaVencimento" promptText="Ex: 10"/>
-                <Button text="Salvar Cartão" onAction="#salvarCartao"/>
+                <HBox spacing="10">
+                    <Button text="Salvar / Atualizar" onAction="#salvarCartao" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                    <Button text="Excluir" onAction="#excluirCartao" style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                </HBox>
             </VBox>
-
             <TableView fx:id="tabelaCartoes" HBox.hgrow="ALWAYS">
                 <columns>
                     <TableColumn fx:id="colCartaoNome" text="Nome do Cartão" prefWidth="300"/>
@@ -99,16 +129,18 @@
         </HBox>
     </Tab>
 
-    <!-- ABA 3: GESTÃO DE CATEGORIAS -->
+    <!-- ABA 3: CONFIGURAR CATEGORIAS -->
     <Tab text="Configurar Categorias">
         <HBox spacing="20" style="-fx-padding: 20;">
             <VBox spacing="15" prefWidth="300" style="-fx-padding: 20; -fx-background-color: #2b2d30; -fx-background-radius: 8;">
-                <Label text="Cadastrar Categoria" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                <Label text="Nome da Categoria (ex: Alimentação, Lazer):"/>
+                <Label text="Gerir Categoria" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                <Label text="Nome da Categoria:"/>
                 <TextField fx:id="txtNomeCategoria" promptText="Nome da Categoria"/>
-                <Button text="Salvar Categoria" onAction="#salvarCategoria"/>
+                <HBox spacing="10">
+                    <Button text="Salvar / Atualizar" onAction="#salvarCategoria" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                    <Button text="Excluir" onAction="#excluirCategoria" style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                </HBox>
             </VBox>
-
             <TableView fx:id="tabelaCategorias" HBox.hgrow="ALWAYS">
                 <columns>
                     <TableColumn fx:id="colCategoriaNome" text="Nome da Categoria" prefWidth="400"/>
@@ -117,4 +149,29 @@
         </HBox>
     </Tab>
 
+    <!-- ABA 4: METAS DE INVESTIMENTO -->
+    <Tab text="Metas de Investimento">
+        <HBox spacing="20" style="-fx-padding: 20;">
+            <VBox spacing="15" prefWidth="300" style="-fx-padding: 20; -fx-background-color: #2b2d30; -fx-background-radius: 8;">
+                <Label text="Gerir Meta" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                <Label text="Descrição da Meta:"/>
+                <TextField fx:id="txtDescricaoMeta" promptText="Ex: Reserva de Emergência"/>
+                <Label text="Valor Alvo (R$):"/>
+                <TextField fx:id="txtValorAlvoMeta" promptText="Ex: 10000.00"/>
+                <Label text="Data Limite:"/>
+                <TextField fx:id="txtDataLimiteMeta" promptText="DD/MM/AAAA"/>
+                <HBox spacing="10">
+                    <Button text="Salvar / Atualizar" onAction="#salvarMeta" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                    <Button text="Excluir" onAction="#excluirMeta" style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                </HBox>
+            </VBox>
+            <TableView fx:id="tabelaMetas" HBox.hgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colMetaDescricao" text="Descrição da Meta" prefWidth="300"/>
+                    <TableColumn fx:id="colMetaAlvo" text="Valor Alvo" prefWidth="150"/>
+                    <TableColumn fx:id="colMetaProgresso" text="Progresso" prefWidth="250"/>
+                </columns>
+            </TableView>
+        </HBox>
+    </Tab>
 </TabPane>
