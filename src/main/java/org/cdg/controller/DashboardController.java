@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class DashboardController {
 
@@ -34,7 +35,6 @@ public class DashboardController {
     @FXML private Label lblSobra;
     @FXML private Label lblDeficit;
     @FXML private Label lblReembolso;
-    @FXML private Label lblInvestido;
     @FXML private Label lblMesAno;
     @FXML private Button btnInvestirSobra;
 
@@ -131,10 +131,14 @@ public class DashboardController {
         dialog.showAndWait().ifPresent(nome -> {
             String nomeFormatado = nome.trim();
             if (!nomeFormatado.isEmpty()) {
-                Categoria nova = Categoria.builder().nome(nomeFormatado).build();
-                new CategoriaRepository().salvar(nova);
-                carregarDadosCategorias();
-                atualizarInterface();
+                try {
+                    Categoria nova = Categoria.builder().nome(nomeFormatado).build();
+                    new CategoriaRepository().salvar(nova);
+                    carregarDadosCategorias();
+                    atualizarInterface();
+                } catch (Exception e) {
+                    exibirAlertaErro("Erro ao cadastrar categoria rápida", e.getMessage());
+                }
             }
         });
     }
@@ -178,9 +182,13 @@ public class DashboardController {
         });
 
         dialog.showAndWait().ifPresent(cartao -> {
-            new CartaoRepository().salvar(cartao);
-            carregarDadosCartoes();
-            atualizarInterface();
+            try {
+                new CartaoRepository().salvar(cartao);
+                carregarDadosCartoes();
+                atualizarInterface();
+            } catch (Exception e) {
+                exibirAlertaErro("Erro ao cadastrar cartão rápido", e.getMessage());
+            }
         });
     }
 
@@ -205,7 +213,6 @@ public class DashboardController {
         lblMesAno.setText(mesAtual.format(fmt));
 
         carregarDadosTabela();
-        carregarInvestimentoGlobal();
         carregarFaturasCartoes();
         carregarGastosCategorias();
         carregarCardsMetasDashboard();
@@ -241,107 +248,26 @@ public class DashboardController {
     }
 
     private void carregarDadosTabela() {
-        ObservableList<Transacao> listaTransacoes = FXCollections.observableArrayList();
-        LocalDate inicioMes = mesAtual.withDayOfMonth(1);
-        LocalDate fimMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
+        try {
+            TransacaoRepository repo = new TransacaoRepository();
+            ResumoMensalDTO resumo = repo.obterResumoMensal(mesAtual);
 
-        String sql = """
-            SELECT t.*, cat.nome AS categoria_nome, car.nome AS cartao_nome, car.dia_vencimento 
-            FROM tb_transacao t 
-            LEFT JOIN tb_categoria cat ON t.id_categoria = cat.id_categoria 
-            LEFT JOIN tb_cartao car ON t.id_cartao = car.id_cartao 
-            WHERE t.data_cobranca BETWEEN ? AND ?
-            ORDER BY t.data_cobranca ASC
-            """;
-
-        BigDecimal totalReceitas = BigDecimal.ZERO;
-        BigDecimal totalDespesas = BigDecimal.ZERO;
-        BigDecimal totalReembolsos = BigDecimal.ZERO;
-        BigDecimal investimentosDesteMes = BigDecimal.ZERO;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setDate(1, java.sql.Date.valueOf(inicioMes));
-            pstmt.setDate(2, java.sql.Date.valueOf(fimMes));
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    BigDecimal valor = rs.getBigDecimal("valor");
-                    if (valor == null) valor = BigDecimal.ZERO;
-
-                    String tipo = rs.getString("tipo");
-                    boolean reembolsavel = rs.getInt("reembolsavel") == 1;
-                    if (tipo == null) tipo = "DESPESA";
-
-                    if ("RECEITA".equalsIgnoreCase(tipo)) {
-                        totalReceitas = totalReceitas.add(valor);
-                    } else if ("INVESTIMENTO".equalsIgnoreCase(tipo)) {
-                        investimentosDesteMes = investimentosDesteMes.add(valor);
-                    } else {
-                        if (reembolsavel) {
-                            totalReembolsos = totalReembolsos.add(valor);
-                        } else {
-                            totalDespesas = totalDespesas.add(valor);
-                        }
-                    }
-
-                    Transacao t = Transacao.builder()
-                            .idTransacao(rs.getInt("id_transacao"))
-                            .descricao(rs.getString("descricao"))
-                            .valor(valor)
-                            .dataCobranca(rs.getDate("data_cobranca").toLocalDate())
-                            .status(rs.getString("status"))
-                            .tipo(tipo)
-                            .reembolsavel(reembolsavel)
-                            .categoria(Categoria.builder()
-                                    .idCategoria(rs.getInt("id_categoria"))
-                                    .nome(rs.getString("categoria_nome"))
-                                    .build())
-                            .cartao(Cartao.builder()
-                                    .idCartao(rs.getInt("id_cartao"))
-                                    .nome(rs.getString("cartao_nome"))
-                                    .diaVencimento(rs.getInt("dia_vencimento"))
-                                    .build())
-                            .build();
-                    listaTransacoes.add(t);
-                }
-            }
-            tabelaTransacoes.setItems(listaTransacoes);
-
-            // CÁLCULO DA SOBRA: Receitas - Despesas - Investimentos
-            sobraDesteMes = totalReceitas.subtract(totalDespesas).subtract(investimentosDesteMes);
-            atualizarResumoMensal(totalDespesas, totalReembolsos);
+            tabelaTransacoes.setItems(FXCollections.observableArrayList(resumo.getTransacoes()));
+            sobraDesteMes = resumo.getSobra();
+            atualizarResumoMensal(resumo.getTotalDespesas(), resumo.getTotalReembolsos());
 
         } catch (SQLException e) {
-            System.err.println("Erro ao carregar tabela: " + e.getMessage());
+            exibirAlertaErro("Erro ao carregar transações", e.getMessage());
         }
-    }
-
-    private BigDecimal obterTotalInvestidoGlobal() {
-        BigDecimal totalInvestidoGlobal = BigDecimal.ZERO;
-        String sqlInvestido = "SELECT SUM(valor) FROM tb_transacao WHERE tipo = 'INVESTIMENTO'";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sqlInvestido);
-             ResultSet rs = pstmt.executeQuery()) {
-            if (rs.next()) {
-                totalInvestidoGlobal = rs.getBigDecimal(1);
-                if (totalInvestidoGlobal == null) totalInvestidoGlobal = BigDecimal.ZERO;
-            }
-        } catch (SQLException e) {
-            System.err.println("Erro ao buscar total investido: " + e.getMessage());
-        }
-        return totalInvestidoGlobal;
     }
 
     private void carregarCardsMetasDashboard() {
         boxCardsMetas.getChildren().clear();
         MetaRepository repo = new MetaRepository();
-        BigDecimal totalInvestidoGlobal = obterTotalInvestidoGlobal();
 
         for (Meta m : repo.listarTodas()) {
             BigDecimal alvo = m.getValorAlvo() != null ? m.getValorAlvo() : BigDecimal.ZERO;
-            BigDecimal acumulado = totalInvestidoGlobal;
+            BigDecimal acumulado = m.getValorAtual() != null ? m.getValorAtual() : BigDecimal.ZERO;
 
             double fracao = alvo.compareTo(BigDecimal.ZERO) > 0 ?
                     acumulado.divide(alvo, 4, RoundingMode.HALF_UP).doubleValue() : 0.0;
@@ -356,128 +282,89 @@ public class DashboardController {
 
             HBox itemMeta = new HBox(12);
             itemMeta.setAlignment(Pos.CENTER_LEFT);
-            itemMeta.setStyle("-fx-background-color: #212225; -fx-padding: 8 12; -fx-background-radius: 6; -fx-border-color: #37393e; -fx-border-radius: 6;");
+            // Largura fixa e mínima para garantir que o card nunca seja espremido ao adicionar mais metas
+            itemMeta.setMinWidth(220);
+            itemMeta.setPrefWidth(220);
+            itemMeta.setStyle("-fx-background-color: #1a1b1e; -fx-padding: 10 14; -fx-background-radius: 8; -fx-border-color: #2d3035; -fx-border-radius: 8;");
 
+            // Roda de progresso circular padronizada
             ProgressIndicator ring = new ProgressIndicator(Math.min(fracao, 1.0));
             ring.setPrefSize(42, 42);
+            ring.setMinSize(42, 42);
             ring.setStyle(fracao >= 1.0 ? "-fx-progress-color: #00c853;" : "-fx-progress-color: #3574f0;");
 
             VBox info = new VBox(2);
 
-            Label lblTitulo = new Label(m.getDescricao());
-            lblTitulo.setStyle("-fx-font-weight: bold; -fx-text-fill: #ffffff; -fx-font-size: 12px;");
+            // 1. Nome da Meta + Porcentagem
+            HBox linhaNome = new HBox(6);
+            linhaNome.setAlignment(Pos.CENTER_LEFT);
 
-            Label lblAlvo = new Label(String.format("Alvo: R$ %,.2f (%s%%)", alvo, pct.toString()));
+            Label lblTitulo = new Label(m.getDescricao());
+            lblTitulo.setStyle("-fx-font-weight: bold; -fx-text-fill: #ffffff; -fx-font-size: 13px;");
+
+            Label lblPct = new Label("(" + pct + "%)");
+            lblPct.setStyle("-fx-font-weight: bold; -fx-text-fill: #3574f0; -fx-font-size: 11px;");
+
+            linhaNome.getChildren().addAll(lblTitulo, lblPct);
+
+            // 2. Meta (Alvo)
+            Label lblAlvo = new Label("Meta: " + formatarMoeda(alvo));
             lblAlvo.setStyle("-fx-font-size: 10px; -fx-text-fill: #9da5b4;");
 
-            Label lblFalta = new Label(String.format("Falta: R$ %,.2f", falta));
+            // 3. Guardado
+            Label lblGuardado = new Label("Guardado: " + formatarMoeda(acumulado));
+            lblGuardado.setStyle("-fx-font-size: 10px; -fx-text-fill: #00c853;");
+
+            // 4. Falta
+            Label lblFalta = new Label("Falta: " + formatarMoeda(falta));
             lblFalta.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #ffb74d;");
 
-            info.getChildren().addAll(lblTitulo, lblAlvo, lblFalta);
+            info.getChildren().addAll(linhaNome, lblAlvo, lblGuardado, lblFalta);
             itemMeta.getChildren().addAll(ring, info);
             boxCardsMetas.getChildren().add(itemMeta);
         }
     }
 
+    private VBox criarCardVisual(String titulo, BigDecimal valor, String corHex) {
+        VBox card = new VBox(4);
+        card.setStyle("-fx-background-color: #212225; -fx-padding: 10 16; -fx-background-radius: 6; -fx-border-color: #37393e; -fx-border-radius: 6;");
+        card.setAlignment(Pos.CENTER);
+        card.setMinWidth(160);
+
+        Label lblNome = new Label(titulo);
+        lblNome.setStyle("-fx-font-size: 11px; -fx-text-fill: #9da5b4; -fx-font-weight: bold;");
+
+        Label lblTotal = new Label(formatarMoeda(valor));
+        lblTotal.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + corHex + ";");
+
+        card.getChildren().addAll(lblNome, lblTotal);
+        return card;
+    }
+
     private void carregarGastosCategorias() {
         boxGastosCategorias.getChildren().clear();
-
-        LocalDate inicioMes = mesAtual.withDayOfMonth(1);
-        LocalDate fimMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
-
-        String sql = """
-            SELECT c.nome, SUM(t.valor) as total
-            FROM tb_transacao t
-            INNER JOIN tb_categoria c ON t.id_categoria = c.id_categoria
-            WHERE t.data_cobranca BETWEEN ? AND ?
-            AND t.tipo = 'DESPESA'
-            GROUP BY c.nome
-            HAVING total > 0
-            ORDER BY total DESC
-            """;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setDate(1, java.sql.Date.valueOf(inicioMes));
-            pstmt.setDate(2, java.sql.Date.valueOf(fimMes));
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    String nomeCat = rs.getString("nome");
-                    BigDecimal total = rs.getBigDecimal("total");
-
-                    VBox card = new VBox(4);
-                    card.setStyle("-fx-background-color: #212225; -fx-padding: 10 16; -fx-background-radius: 6; -fx-border-color: #37393e; -fx-border-radius: 6;");
-                    card.setAlignment(Pos.CENTER);
-                    card.setMinWidth(160);
-
-                    Label lblNome = new Label(nomeCat);
-                    lblNome.setStyle("-fx-font-size: 11px; -fx-text-fill: #9da5b4; -fx-font-weight: bold;");
-
-                    Label lblTotal = new Label(formatarMoeda(total));
-                    lblTotal.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #00c853;");
-
-                    card.getChildren().addAll(lblNome, lblTotal);
-                    boxGastosCategorias.getChildren().add(card);
-                }
+        try {
+            List<GastoAgrupadoDTO> gastos = new CategoriaRepository().obterGastosPorMes(mesAtual);
+            for (GastoAgrupadoDTO item : gastos) {
+                VBox card = criarCardVisual(item.getNome(), item.getTotal(), "#00c853");
+                boxGastosCategorias.getChildren().add(card);
             }
         } catch (SQLException e) {
-            System.err.println("Erro ao carregar gastos por categoria: " + e.getMessage());
+            exibirAlertaErro("Erro ao carregar gastos por categoria", e.getMessage());
         }
     }
 
     private void carregarFaturasCartoes() {
         boxFaturasCartoes.getChildren().clear();
-
-        LocalDate inicioMes = mesAtual.withDayOfMonth(1);
-        LocalDate fimMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
-
-        String sql = """
-            SELECT c.nome, SUM(t.valor) as total
-            FROM tb_transacao t
-            INNER JOIN tb_cartao c ON t.id_cartao = c.id_cartao
-            WHERE t.data_cobranca BETWEEN ? AND ?
-            AND t.tipo = 'DESPESA'
-            GROUP BY c.nome
-            HAVING total > 0
-            ORDER BY total DESC
-            """;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setDate(1, java.sql.Date.valueOf(inicioMes));
-            pstmt.setDate(2, java.sql.Date.valueOf(fimMes));
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    String nomeCartao = rs.getString("nome");
-                    BigDecimal total = rs.getBigDecimal("total");
-
-                    VBox card = new VBox(4);
-                    card.setStyle("-fx-background-color: #212225; -fx-padding: 10 16; -fx-background-radius: 6; -fx-border-color: #37393e; -fx-border-radius: 6;");
-                    card.setAlignment(Pos.CENTER);
-                    card.setMinWidth(160);
-
-                    Label lblNome = new Label(nomeCartao);
-                    lblNome.setStyle("-fx-font-size: 11px; -fx-text-fill: #9da5b4; -fx-font-weight: bold;");
-
-                    Label lblTotal = new Label(formatarMoeda(total));
-                    lblTotal.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #ffb74d;");
-
-                    card.getChildren().addAll(lblNome, lblTotal);
-                    boxFaturasCartoes.getChildren().add(card);
-                }
+        try {
+            List<GastoAgrupadoDTO> faturas = new CartaoRepository().obterFaturasPorMes(mesAtual);
+            for (GastoAgrupadoDTO item : faturas) {
+                VBox card = criarCardVisual(item.getNome(), item.getTotal(), "#ffb74d");
+                boxFaturasCartoes.getChildren().add(card);
             }
         } catch (SQLException e) {
-            System.err.println("Erro ao carregar faturas dos cartões: " + e.getMessage());
+            exibirAlertaErro("Erro ao carregar faturas dos cartões", e.getMessage());
         }
-    }
-
-    private void carregarInvestimentoGlobal() {
-        BigDecimal totalGlobal = obterTotalInvestidoGlobal();
-        lblInvestido.setText(formatarMoeda(totalGlobal));
     }
 
     private void atualizarResumoMensal(BigDecimal despesas, BigDecimal reembolsos) {
@@ -501,40 +388,67 @@ public class DashboardController {
 
         CartaoRepository cartaoRepo = new CartaoRepository();
         CategoriaRepository catRepo = new CategoriaRepository();
+        MetaRepository metaRepo = new MetaRepository();
 
         List<Cartao> cartoes = cartaoRepo.listarTodos();
         List<Categoria> categorias = catRepo.listarTodas();
+        List<Meta> metas = metaRepo.listarTodas();
 
         if (cartoes.isEmpty() || categorias.isEmpty()) {
             new Alert(Alert.AlertType.WARNING, "Cadastre pelo menos 1 cartão e 1 categoria antes de investir.").showAndWait();
             return;
         }
 
-        LocalDate ultimoDiaDoMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
+        if (metas.isEmpty()) {
+            new Alert(Alert.AlertType.WARNING, "Cadastre pelo menos 1 Meta na aba 'Metas' antes de investir a sobra.").showAndWait();
+            return;
+        }
 
-        // Instancia os objetos base de Conta e Titular idênticos aos usados no TransacaoFormController
-        Conta contaBase = Conta.builder().idConta(1).build();
-        Titular titularBase = Titular.builder().idTitular(1).build();
+        ChoiceDialog<Meta> dialog = new ChoiceDialog<>(metas.get(0), metas);
+        dialog.setTitle("Investir Sobra do Mês");
+        dialog.setHeaderText("Escolha a Meta de Destino");
+        dialog.setContentText("Destinar " + formatarMoeda(sobraDesteMes) + " para:");
 
-        Transacao aporte = Transacao.builder()
-                .descricao("Aporte Fim de Mês (Automático)")
-                .valor(sobraDesteMes)
-                .dataRegisto(LocalDate.now())
-                .dataCobranca(ultimoDiaDoMes)
-                .parcelaAtual(1)
-                .totalParcelas(1)
-                .status("PAGO")
-                .tipo("INVESTIMENTO")
-                .cartao(cartoes.get(0))
-                .categoria(categorias.get(0))
-                .conta(contaBase)
-                .titular(titularBase)
-                .build();
+        Optional<Meta> resultado = dialog.showAndWait();
+        if (resultado.isEmpty()) return;
 
-        TransacaoRepository repo = new TransacaoRepository();
-        repo.salvar(aporte);
+        Meta metaEscolhida = resultado.get();
 
-        atualizarInterface();
+        try {
+            // 1. Atualizar a Meta
+            BigDecimal atual = metaEscolhida.getValorAtual() != null ? metaEscolhida.getValorAtual() : BigDecimal.ZERO;
+            metaEscolhida.setValorAtual(atual.add(sobraDesteMes));
+            metaRepo.atualizar(metaEscolhida);
+
+            // 2. Registrar o Aporte
+            LocalDate ultimoDiaDoMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
+            Conta contaBase = Conta.builder().idConta(1).build();
+            Titular titularBase = Titular.builder().idTitular(1).build();
+
+            Transacao aporte = Transacao.builder()
+                    .descricao("Aporte: " + metaEscolhida.getDescricao())
+                    .valor(sobraDesteMes)
+                    .dataRegisto(LocalDate.now())
+                    .dataCobranca(ultimoDiaDoMes)
+                    .parcelaAtual(1)
+                    .totalParcelas(1)
+                    .status("PAGO")
+                    .tipo("INVESTIMENTO")
+                    .cartao(cartoes.get(0))
+                    .categoria(categorias.get(0))
+                    .conta(contaBase)
+                    .titular(titularBase)
+                    .build();
+
+            TransacaoRepository repo = new TransacaoRepository();
+            repo.salvar(aporte);
+
+            carregarDadosMetas();
+            atualizarInterface();
+
+        } catch (Exception e) {
+            exibirAlertaErro("Erro ao realizar investimento", e.getMessage());
+        }
     }
 
     // =========================================================================
@@ -560,7 +474,7 @@ public class DashboardController {
 
             atualizarInterface();
         } catch (Exception e) {
-            System.err.println("Erro ao abrir formulário: " + e.getMessage());
+            exibirAlertaErro("Erro ao abrir formulário", e.getMessage());
         }
     }
 
@@ -594,7 +508,7 @@ public class DashboardController {
 
             atualizarInterface();
         } catch (Exception e) {
-            System.err.println("Erro ao abrir formulário de edição: " + e.getMessage());
+            exibirAlertaErro("Erro ao editar transação", e.getMessage());
         }
     }
 
@@ -615,8 +529,7 @@ public class DashboardController {
                 repo.excluir(selecionada.getIdTransacao());
                 atualizarInterface();
             } catch (Exception e) {
-                Alert erro = new Alert(Alert.AlertType.ERROR, "Não foi possível excluir: " + e.getMessage());
-                erro.showAndWait();
+                exibirAlertaErro("Não foi possível excluir a transação", e.getMessage());
             }
         }
     }
@@ -662,7 +575,7 @@ public class DashboardController {
             carregarDadosCartoes();
             atualizarInterface();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Erro ao salvar cartão: " + e.getMessage()).showAndWait();
+            exibirAlertaErro("Erro ao salvar cartão", e.getMessage());
         }
     }
 
@@ -679,7 +592,7 @@ public class DashboardController {
             carregarDadosCartoes();
             atualizarInterface();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Erro ao excluir cartão: " + e.getMessage()).showAndWait();
+            exibirAlertaErro("Erro ao excluir cartão", e.getMessage());
         }
     }
 
@@ -714,7 +627,7 @@ public class DashboardController {
             carregarDadosCategorias();
             atualizarInterface();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Erro ao salvar categoria: " + e.getMessage()).showAndWait();
+            exibirAlertaErro("Erro ao salvar categoria", e.getMessage());
         }
     }
 
@@ -730,7 +643,7 @@ public class DashboardController {
             carregarDadosCategorias();
             atualizarInterface();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Erro ao excluir categoria: " + e.getMessage()).showAndWait();
+            exibirAlertaErro("Erro ao excluir categoria", e.getMessage());
         }
     }
 
@@ -759,7 +672,7 @@ public class DashboardController {
                 } else {
                     Meta meta = getTableRow().getItem();
                     BigDecimal alvo = meta.getValorAlvo() != null ? meta.getValorAlvo() : BigDecimal.ZERO;
-                    BigDecimal acumulado = obterTotalInvestidoGlobal();
+                    BigDecimal acumulado = meta.getValorAtual() != null ? meta.getValorAtual() : BigDecimal.ZERO;
 
                     if (alvo.compareTo(BigDecimal.ZERO) > 0) {
                         double fracao = acumulado.divide(alvo, 4, RoundingMode.HALF_UP).doubleValue();
@@ -823,7 +736,7 @@ public class DashboardController {
             carregarDadosMetas();
             atualizarInterface();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Erro ao salvar meta: " + e.getMessage()).showAndWait();
+            exibirAlertaErro("Erro ao salvar meta", e.getMessage());
         }
     }
 
@@ -841,54 +754,27 @@ public class DashboardController {
             carregarDadosMetas();
             atualizarInterface();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Erro ao excluir meta: " + e.getMessage()).showAndWait();
+            exibirAlertaErro("Erro ao excluir meta", e.getMessage());
         }
     }
 
     @FXML
     public void gerarRelatorioReembolsos() {
-        LocalDate inicioMes = mesAtual.withDayOfMonth(1);
-        LocalDate fimMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
-
-        String sql = """
-            SELECT t.*, cat.nome AS categoria_nome, car.nome AS cartao_nome
-            FROM tb_transacao t
-            LEFT JOIN tb_categoria cat ON t.id_categoria = cat.id_categoria
-            LEFT JOIN tb_cartao car ON t.id_cartao = car.id_cartao
-            WHERE t.data_cobranca BETWEEN ? AND ?
-            AND t.reembolsavel = 1
-            ORDER BY t.data_cobranca ASC
-            """;
-
-        List<Transacao> reembolsaveis = new ArrayList<>();
+        List<Transacao> reembolsaveis;
         BigDecimal totalReembolso = BigDecimal.ZERO;
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try {
+            // Busca os dados diretamente pelo TransacaoRepository sem SQL no Controller
+            TransacaoRepository repo = new TransacaoRepository();
+            reembolsaveis = repo.listarReembolsaveisPorMes(mesAtual);
 
-            pstmt.setDate(1, java.sql.Date.valueOf(inicioMes));
-            pstmt.setDate(2, java.sql.Date.valueOf(fimMes));
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    BigDecimal valor = rs.getBigDecimal("valor");
-                    if (valor == null) valor = BigDecimal.ZERO;
-                    totalReembolso = totalReembolso.add(valor);
-
-                    Transacao t = Transacao.builder()
-                            .idTransacao(rs.getInt("id_transacao"))
-                            .descricao(rs.getString("descricao"))
-                            .valor(valor)
-                            .dataCobranca(rs.getDate("data_cobranca").toLocalDate())
-                            .status(rs.getString("status"))
-                            .categoria(Categoria.builder().nome(rs.getString("categoria_nome")).build())
-                            .cartao(Cartao.builder().nome(rs.getString("cartao_nome")).build())
-                            .build();
-                    reembolsaveis.add(t);
+            for (Transacao t : reembolsaveis) {
+                if (t.getValor() != null) {
+                    totalReembolso = totalReembolso.add(t.getValor());
                 }
             }
         } catch (SQLException e) {
-            new Alert(Alert.AlertType.ERROR, "Erro ao procurar reembolsáveis: " + e.getMessage()).showAndWait();
+            exibirAlertaErro("Erro ao buscar transações reembolsáveis", e.getMessage());
             return;
         }
 
@@ -962,9 +848,17 @@ public class DashboardController {
                 new Alert(Alert.AlertType.INFORMATION, "Relatório PDF gerado com sucesso em:\n" + file.getAbsolutePath()).showAndWait();
 
             } catch (Exception e) {
-                new Alert(Alert.AlertType.ERROR, "Erro ao gerar PDF: " + e.getMessage()).showAndWait();
+                exibirAlertaErro("Erro ao gerar arquivo PDF", e.getMessage());
             }
         }
+    }
+
+    private void exibirAlertaErro(String titulo, String mensagem) {
+        Alert alerta = new Alert(Alert.AlertType.ERROR);
+        alerta.setTitle("Erro");
+        alerta.setHeaderText(titulo);
+        alerta.setContentText(mensagem);
+        alerta.showAndWait();
     }
 
     private static final java.text.NumberFormat FMT_MOEDA = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("pt", "BR"));

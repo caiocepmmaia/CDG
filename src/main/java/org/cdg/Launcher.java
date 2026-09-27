@@ -8,4 +8,4 @@ public class Launcher {
         // O seu "truque" original para enganar e invocar o arranque do JavaFX
         org.cdg.App.main(args);
     }
-}
+}   

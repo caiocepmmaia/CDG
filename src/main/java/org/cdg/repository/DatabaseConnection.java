@@ -6,15 +6,14 @@ import java.sql.SQLException;
 
 public class DatabaseConnection {
 
-    // O caminho para o arquivo .db que você criou na pasta resources
     private static final String URL = "jdbc:sqlite:src/main/resources/database/financas.db";
 
-    public static Connection getConnection() {
+    public static Connection getConnection() throws SQLException {
         try {
-            return DriverManager.getConnection(URL);
-        } catch (SQLException e) {
-            System.err.println("Erro ao conectar com o banco de dados SQLite: " + e.getMessage());
-            return null;
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Driver JDBC do SQLite não encontrado no classpath.", e);
         }
+        return DriverManager.getConnection(URL);
     }
 }

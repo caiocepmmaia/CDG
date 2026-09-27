@@ -33,13 +33,21 @@ public class TransacaoFormController {
     public void initialize() {
         cbTipo.getSelectionModel().select("DESPESA");
 
-        CartaoRepository cartaoRepo = new CartaoRepository();
-        cbCartao.getItems().addAll(cartaoRepo.listarTodos());
-        if (!cbCartao.getItems().isEmpty()) cbCartao.getSelectionModel().selectFirst();
+        try {
+            CartaoRepository cartaoRepo = new CartaoRepository();
+            cbCartao.getItems().addAll(cartaoRepo.listarTodos());
+            if (!cbCartao.getItems().isEmpty()) cbCartao.getSelectionModel().selectFirst();
 
-        CategoriaRepository catRepo = new CategoriaRepository();
-        cbCategoria.getItems().addAll(catRepo.listarTodas());
-        if (!cbCategoria.getItems().isEmpty()) cbCategoria.getSelectionModel().selectFirst();
+            CategoriaRepository catRepo = new CategoriaRepository();
+            cbCategoria.getItems().addAll(catRepo.listarTodas());
+            if (!cbCategoria.getItems().isEmpty()) cbCategoria.getSelectionModel().selectFirst();
+        } catch (Exception e) {
+            Alert alerta = new Alert(Alert.AlertType.ERROR);
+            alerta.setTitle("Erro de Carregamento");
+            alerta.setHeaderText("Falha ao carregar opções");
+            alerta.setContentText("Não foi possível carregar cartões e categorias do banco:\n" + e.getMessage());
+            alerta.showAndWait();
+        }
 
         txtData.setText(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
     }
@@ -97,8 +105,15 @@ public class TransacaoFormController {
                     totalParcelas = 1;
                 }
 
-                // Divisão monetária exata com BigDecimal e arredondamento HALF_UP (2 casas decimais)
-                BigDecimal valorParcela = valorTotal.divide(BigDecimal.valueOf(totalParcelas), 2, RoundingMode.HALF_UP);
+                // --- DIVISÃO FINANCEIRA EXATA ---
+                // 1. Parcela base arredondada para baixo (2 casas decimais)
+                BigDecimal valorParcelaBase = valorTotal.divide(BigDecimal.valueOf(totalParcelas), 2, RoundingMode.DOWN);
+
+                // 2. Soma das parcelas base
+                BigDecimal somaBase = valorParcelaBase.multiply(BigDecimal.valueOf(totalParcelas));
+
+                // 3. Diferença de centavos (resto)
+                BigDecimal diferencaCentavos = valorTotal.subtract(somaBase);
 
                 Conta contaBase = Conta.builder().idConta(1).build();
                 Titular titularBase = Titular.builder().idTitular(1).build();
@@ -107,9 +122,12 @@ public class TransacaoFormController {
                     String descricaoFormatada = totalParcelas > 1 ? descricaoOriginal + " (" + i + "/" + totalParcelas + ")" : descricaoOriginal;
                     LocalDate dataParcela = dataInicial.plusMonths(i - 1);
 
+                    // A primeira parcela (i == 1) absorve a diferença de centavos
+                    BigDecimal valorEstaParcela = (i == 1) ? valorParcelaBase.add(diferencaCentavos) : valorParcelaBase;
+
                     Transacao parcela = Transacao.builder()
                             .descricao(descricaoFormatada)
-                            .valor(valorParcela)
+                            .valor(valorEstaParcela)
                             .dataRegisto(LocalDate.now())
                             .dataCobranca(dataParcela)
                             .parcelaAtual(i)
@@ -146,10 +164,10 @@ public class TransacaoFormController {
             cbCartao.setValue(t.getCartao());
             cbCategoria.setValue(t.getCategoria());
             txtDescricao.setText(t.getDescricao());
-            txtValor.setText(t.getValor().toString()); // Converte BigDecimal para String no campo
+            txtValor.setText(t.getValor().toString());
             txtData.setText(t.getDataCobranca().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
             txtParcelas.setText(String.valueOf(t.getTotalParcelas()));
-            txtParcelas.setDisable(true); // Desativa o campo de parcelas na edição
+            txtParcelas.setDisable(true);
             chkReembolsavel.setSelected(t.isReembolsavel());
         }
     }

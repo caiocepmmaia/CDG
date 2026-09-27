@@ -18,4 +18,9 @@ public class Meta {
     private BigDecimal valorAlvo;
     private BigDecimal valorAtual;
     private LocalDate dataLimite;
+
+    @Override
+    public String toString() {
+        return descricao != null ? descricao : "Meta sem nome";
+    }
 }

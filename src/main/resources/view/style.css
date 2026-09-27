@@ -224,3 +224,9 @@
     -fx-border-radius: 8;
 }
 
+/* Força a remoção de qualquer barra de rolagem vertical nos ScrollPanes com vbarPolicy NEVER */
+.scroll-pane > .scroll-bar:vertical {
+    -fx-opacity: 0;
+    -fx-padding: 0;
+    -fx-pref-width: 0;
+}
