@@ -8,7 +8,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import org.cdg.model.Cartao;
-import org.cdg.repository.CartaoRepository;
+import org.cdg.service.CartaoService;
 import org.cdg.util.AlertHelper;
 
 public class CartaoController {
@@ -23,7 +23,7 @@ public class CartaoController {
     @FXML private TableColumn<Cartao, Integer> colCartaoFechamento;
 
     private Cartao cartaoParaEditar = null;
-    private final CartaoRepository repo = new CartaoRepository();
+    private final CartaoService cartaoService = new CartaoService();
 
     @FXML
     public void initialize() {
@@ -47,37 +47,28 @@ public class CartaoController {
     }
 
     public void carregarDados() {
-        tabelaCartoes.setItems(FXCollections.observableArrayList(repo.listarTodos()));
+        tabelaCartoes.setItems(FXCollections.observableArrayList(cartaoService.listarTodos()));
     }
 
     @FXML
     public void salvarCartao() {
         try {
-            String nome = txtNomeCartao.getText();
-            String diaVenc = txtDiaVencimento.getText();
-            String diaFech = txtDiaFechamento.getText();
-
-            if (nome == null || nome.trim().isEmpty() || diaVenc.trim().isEmpty() || diaFech.trim().isEmpty()) {
-                throw new Exception("Preencha todos os campos.");
-            }
-
-            if (cartaoParaEditar != null) {
-                cartaoParaEditar.setNome(nome);
-                cartaoParaEditar.setDiaVencimento(Integer.parseInt(diaVenc.trim()));
-                cartaoParaEditar.setDiaFechamento(Integer.parseInt(diaFech.trim()));
-                repo.atualizar(cartaoParaEditar);
-                cartaoParaEditar = null;
-            } else {
-                repo.salvar(Cartao.builder()
-                        .nome(nome)
-                        .diaVencimento(Integer.parseInt(diaVenc.trim()))
-                        .diaFechamento(Integer.parseInt(diaFech.trim()))
-                        .build());
-            }
+            // Delega a validação e a gravação para o Service
+            cartaoService.salvar(
+                    cartaoParaEditar,
+                    txtNomeCartao.getText(),
+                    txtDiaVencimento.getText(),
+                    txtDiaFechamento.getText()
+            );
 
             limparFormulario();
             carregarDados();
+            AlertHelper.showInformation("Sucesso", "Cartão salvo com sucesso!");
+        } catch (IllegalArgumentException e) {
+            // Erros de validação de regra de negócio (ex: dias inválidos)
+            AlertHelper.showWarning(e.getMessage());
         } catch (Exception e) {
+            // Erros inesperados de base de dados
             AlertHelper.showError("Erro ao salvar cartão", e.getMessage());
         }
     }
@@ -90,12 +81,14 @@ public class CartaoController {
             return;
         }
 
-        try {
-            repo.excluir(selecionado.getIdCartao());
-            limparFormulario();
-            carregarDados();
-        } catch (Exception e) {
-            AlertHelper.showError("Erro ao excluir cartão", e.getMessage());
+        if (AlertHelper.showConfirmation("Excluir Cartão", "Deseja realmente excluir o cartão " + selecionado.getNome() + "?")) {
+            try {
+                cartaoService.excluir(selecionado.getIdCartao());
+                limparFormulario();
+                carregarDados();
+            } catch (Exception e) {
+                AlertHelper.showError("Erro ao excluir cartão", e.getMessage());
+            }
         }
     }
 
