@@ -10,6 +10,7 @@ import org.cdg.model.*;
 import org.cdg.repository.CartaoRepository;
 import org.cdg.repository.CategoriaRepository;
 import org.cdg.repository.TransacaoRepository;
+import org.cdg.util.AlertHelper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -42,11 +43,7 @@ public class TransacaoFormController {
             cbCategoria.getItems().addAll(catRepo.listarTodas());
             if (!cbCategoria.getItems().isEmpty()) cbCategoria.getSelectionModel().selectFirst();
         } catch (Exception e) {
-            Alert alerta = new Alert(Alert.AlertType.ERROR);
-            alerta.setTitle("Erro de Carregamento");
-            alerta.setHeaderText("Falha ao carregar opções");
-            alerta.setContentText("Não foi possível carregar cartões e categorias do banco:\n" + e.getMessage());
-            alerta.showAndWait();
+            AlertHelper.showError("Falha ao carregar opções", "Não foi possível carregar cartões e categorias:\n" + e.getMessage());
         }
 
         txtData.setText(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
@@ -186,11 +183,7 @@ public class TransacaoFormController {
             stage.close();
 
         } catch (Exception e) {
-            Alert alerta = new Alert(Alert.AlertType.ERROR);
-            alerta.setTitle("Erro");
-            alerta.setHeaderText("Falha ao salvar");
-            alerta.setContentText("Verifique se preencheu os campos corretamente.\n" + e.getMessage());
-            alerta.showAndWait();
+            AlertHelper.showError("Falha ao salvar", "Verifique se preencheu os campos corretamente.\n" + e.getMessage());
         }
     }
 

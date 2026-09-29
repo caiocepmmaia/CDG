@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="10" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.cdg.controller.CartaoController">
+
+    <padding>
+        <Insets top="15" right="15" bottom="15" left="15"/>
+    </padding>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Nome do Cartão:" />
+        <TextField fx:id="txtNomeCartao" promptText="Ex: Nubank" />
+
+        <Label text="Vencimento:" />
+        <TextField fx:id="txtDiaVencimento" prefWidth="50" />
+
+        <Label text="Fechamento:" />
+        <TextField fx:id="txtDiaFechamento" prefWidth="50" />
+
+        <Button text="Salvar" onAction="#salvarCartao" />
+        <Button text="Excluir Selecionado" onAction="#excluirCartao" />
+    </HBox>
+
+    <TableView fx:id="tabelaCartoes" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colCartaoNome" text="Nome" prefWidth="200"/>
+            <TableColumn fx:id="colCartaoVencimento" text="Dia Venc." prefWidth="100"/>
+            <TableColumn fx:id="colCartaoFechamento" text="Dia Fech." prefWidth="100"/>
+        </columns>
+    </TableView>
+</VBox>

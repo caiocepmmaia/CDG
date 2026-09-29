@@ -17,7 +17,6 @@ public class App extends Application {
             // Cria a cena
             Scene scene = new Scene(root, 1000, 650);
 
-            // APLICA O ESTILO COSMIC (Pop!_OS) GLOBALMENTE (Procurando na pasta view)
             var cssResource = getClass().getResource("/view/style.css");
             if (cssResource != null) {
                 scene.getStylesheets().add(cssResource.toExternalForm());

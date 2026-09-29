@@ -105,29 +105,12 @@
         </Tab>
 
         <!-- ABA GERIR CARTÕES -->
+        <!-- No teu dashboard principal.fxml -->
         <Tab text="Cartões">
-            <VBox spacing="8" style="-fx-padding: 8 0 0 0;">
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <TextField fx:id="txtNomeCartao" promptText="Nome do Cartão (ex: Nubank)"/>
-                    <TextField fx:id="txtDiaVencimento" promptText="Dia Vencimento (1-31)" prefWidth="150"/>
-                    <!-- NOVO CAMPO ADICIONADO AQUI: -->
-                    <TextField fx:id="txtDiaFechamento" promptText="Dia Fechamento (1-31)" prefWidth="150"/>
-                    <Button text="Salvar Cartão" onAction="#salvarCartao" style="-fx-background-color: #3574f0; -fx-text-fill: white; -fx-cursor: hand;"/>
-                    <Button text="Excluir Cartão" onAction="#excluirCartao" style="-fx-background-color: #2b2d30; -fx-text-fill: #f75454; -fx-cursor: hand;"/>
-                </HBox>
-
-                <TableView fx:id="tabelaCartoes" VBox.vgrow="ALWAYS">
-                    <columns>
-                        <TableColumn fx:id="colCartaoNome" text="Nome do Cartão" prefWidth="200"/>
-                        <TableColumn fx:id="colCartaoVencimento" text="Dia do Vencimento" prefWidth="150"/>
-                        <!-- NOVA COLUNA ADICIONADA AQUI: -->
-                        <TableColumn fx:id="colCartaoFechamento" text="Dia do Fechamento" prefWidth="150"/>
-                    </columns>
-                    <columnResizePolicy>
-                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-                    </columnResizePolicy>
-                </TableView>
-            </VBox>
+            <content>
+                <!-- Esta tag carrega o outro FXML e o seu respetivo Controller automaticamente -->
+                <fx:include source="aba_cartoes.fxml" />
+            </content>
         </Tab>
 
         <!-- ABA GERIR CATEGORIAS -->

@@ -3,7 +3,6 @@ package org.cdg.controller;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -12,16 +11,15 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.cdg.model.*;
 import org.cdg.repository.*;
+import org.cdg.service.InvestimentoService;
+import org.cdg.service.RelatorioPdfService;
+import org.cdg.util.AlertHelper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,14 +49,6 @@ public class DashboardController {
     @FXML private TableColumn<Transacao, String> colValor;
     @FXML private TableColumn<Transacao, String> colStatus;
 
-    // --- ELEMENTOS DA ABA CARTÕES ---
-    @FXML private TextField txtNomeCartao;
-    @FXML private TextField txtDiaVencimento;
-    @FXML private TextField txtDiaFechamento;
-    @FXML private TableView<Cartao> tabelaCartoes;
-    @FXML private TableColumn<Cartao, String> colCartaoNome;
-    @FXML private TableColumn<Cartao, Integer> colCartaoVencimento;
-    @FXML private TableColumn<Cartao, Integer> colCartaoFechamento;
 
     // --- ELEMENTOS DA ABA CATEGORIAS ---
     @FXML private TextField txtNomeCategoria;
@@ -84,8 +74,7 @@ public class DashboardController {
         configurarColunas();
         atualizarInterface();
 
-        configurarColunasCartoes();
-        carregarDadosCartoes();
+
 
         configurarColunasCategorias();
         carregarDadosCategorias();
@@ -93,14 +82,6 @@ public class DashboardController {
         configurarColunasMetas();
         carregarDadosMetas();
 
-        tabelaCartoes.getSelectionModel().selectedItemProperty().addListener((obs, antigo, novo) -> {
-            if (novo != null) {
-                cartaoParaEditar = novo;
-                txtNomeCartao.setText(novo.getNome());
-                txtDiaVencimento.setText(String.valueOf(novo.getDiaVencimento()));
-                txtDiaFechamento.setText(String.valueOf(novo.getDiaFechamento())); // PREENCHE O NOVO CAMPO
-            }
-        });
 
         tabelaCategorias.getSelectionModel().selectedItemProperty().addListener((obs, antigo, novo) -> {
             if (novo != null) {
@@ -121,10 +102,6 @@ public class DashboardController {
         });
     }
 
-    // =========================================================================
-    // CADASTRO RÁPIDO VIA DIÁLOGO NATIVO
-    // =========================================================================
-
     @FXML
     public void criarNovaCategoriaRapida() {
         TextInputDialog dialog = new TextInputDialog();
@@ -141,64 +118,13 @@ public class DashboardController {
                     carregarDadosCategorias();
                     atualizarInterface();
                 } catch (Exception e) {
-                    exibirAlertaErro("Erro ao cadastrar categoria rápida", e.getMessage());
+                    AlertHelper.showError("Erro ao cadastrar categoria rápida", e.getMessage());
                 }
             }
         });
     }
 
-    @FXML
-    public void criarNovoCartaoRapido() {
-        Dialog<Cartao> dialog = new Dialog<>();
-        dialog.setTitle("Novo Cartão");
-        dialog.setHeaderText("Cadastrar Novo Cartão");
 
-        ButtonType btnSalvar = new ButtonType("Salvar", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(btnSalvar, ButtonType.CANCEL);
-
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-
-        TextField txtNome = new TextField();
-        txtNome.setPromptText("Ex: Nubank, Itaú");
-        TextField txtDia = new TextField();
-        txtDia.setPromptText("Ex: 10");
-
-        grid.add(new Label("Nome do Cartão:"), 0, 0);
-        grid.add(txtNome, 1, 0);
-        grid.add(new Label("Dia Vencimento (1-31):"), 0, 1);
-        grid.add(txtDia, 1, 1);
-
-        dialog.getDialogPane().setContent(grid);
-
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == btnSalvar) {
-                try {
-                    String nome = txtNome.getText().trim();
-                    int dia = Integer.parseInt(txtDia.getText().trim());
-                    if (!nome.isEmpty() && dia >= 1 && dia <= 31) {
-                        return Cartao.builder().nome(nome).diaVencimento(dia).build();
-                    }
-                } catch (Exception ignored) {}
-            }
-            return null;
-        });
-
-        dialog.showAndWait().ifPresent(cartao -> {
-            try {
-                new CartaoRepository().salvar(cartao);
-                carregarDadosCartoes();
-                atualizarInterface();
-            } catch (Exception e) {
-                exibirAlertaErro("Erro ao cadastrar cartão rápido", e.getMessage());
-            }
-        });
-    }
-
-    // =========================================================================
-    // LÓGICA E RENDERIZAÇÃO DA DASHBOARD
-    // =========================================================================
 
     @FXML
     public void mesAnterior() {
@@ -270,7 +196,7 @@ public class DashboardController {
             atualizarResumoMensal(resumo.getTotalDespesas(), resumo.getTotalReembolsos());
 
         } catch (SQLException e) {
-            exibirAlertaErro("Erro ao carregar transações", e.getMessage());
+            AlertHelper.showError("Erro ao carregar transações", e.getMessage());
         }
     }
 
@@ -295,12 +221,10 @@ public class DashboardController {
 
             HBox itemMeta = new HBox(12);
             itemMeta.setAlignment(Pos.CENTER_LEFT);
-            // Largura fixa e mínima para garantir que o card nunca seja espremido ao adicionar mais metas
             itemMeta.setMinWidth(220);
             itemMeta.setPrefWidth(220);
             itemMeta.setStyle("-fx-background-color: #1a1b1e; -fx-padding: 10 14; -fx-background-radius: 8; -fx-border-color: #2d3035; -fx-border-radius: 8;");
 
-            // Roda de progresso circular padronizada
             ProgressIndicator ring = new ProgressIndicator(Math.min(fracao, 1.0));
             ring.setPrefSize(42, 42);
             ring.setMinSize(42, 42);
@@ -308,7 +232,6 @@ public class DashboardController {
 
             VBox info = new VBox(2);
 
-            // 1. Nome da Meta + Porcentagem
             HBox linhaNome = new HBox(6);
             linhaNome.setAlignment(Pos.CENTER_LEFT);
 
@@ -320,15 +243,12 @@ public class DashboardController {
 
             linhaNome.getChildren().addAll(lblTitulo, lblPct);
 
-            // 2. Meta (Alvo)
             Label lblAlvo = new Label("Meta: " + formatarMoeda(alvo));
             lblAlvo.setStyle("-fx-font-size: 10px; -fx-text-fill: #9da5b4;");
 
-            // 3. Guardado
             Label lblGuardado = new Label("Guardado: " + formatarMoeda(acumulado));
             lblGuardado.setStyle("-fx-font-size: 10px; -fx-text-fill: #00c853;");
 
-            // 4. Falta
             Label lblFalta = new Label("Falta: " + formatarMoeda(falta));
             lblFalta.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #ffb74d;");
 
@@ -363,7 +283,7 @@ public class DashboardController {
                 boxGastosCategorias.getChildren().add(card);
             }
         } catch (SQLException e) {
-            exibirAlertaErro("Erro ao carregar gastos por categoria", e.getMessage());
+            AlertHelper.showError("Erro ao carregar gastos por categoria", e.getMessage());
         }
     }
 
@@ -376,7 +296,7 @@ public class DashboardController {
                 boxFaturasCartoes.getChildren().add(card);
             }
         } catch (SQLException e) {
-            exibirAlertaErro("Erro ao carregar faturas dos cartões", e.getMessage());
+            AlertHelper.showError("Erro ao carregar faturas dos cartões", e.getMessage());
         }
     }
 
@@ -399,21 +319,11 @@ public class DashboardController {
     public void investirSobra() {
         if (sobraDesteMes == null || sobraDesteMes.compareTo(BigDecimal.ZERO) <= 0) return;
 
-        CartaoRepository cartaoRepo = new CartaoRepository();
-        CategoriaRepository catRepo = new CategoriaRepository();
-        MetaRepository metaRepo = new MetaRepository();
-
-        List<Cartao> cartoes = cartaoRepo.listarTodos();
-        List<Categoria> categorias = catRepo.listarTodas();
-        List<Meta> metas = metaRepo.listarTodas();
-
-        if (cartoes.isEmpty() || categorias.isEmpty()) {
-            new Alert(Alert.AlertType.WARNING, "Cadastre pelo menos 1 cartão e 1 categoria antes de investir.").showAndWait();
-            return;
-        }
+        InvestimentoService invService = new InvestimentoService();
+        List<Meta> metas = invService.listarMetas();
 
         if (metas.isEmpty()) {
-            new Alert(Alert.AlertType.WARNING, "Cadastre pelo menos 1 Meta na aba 'Metas' antes de investir a sobra.").showAndWait();
+            AlertHelper.showWarning("Cadastre pelo menos 1 Meta na aba 'Metas' antes de investir a sobra.");
             return;
         }
 
@@ -422,51 +332,21 @@ public class DashboardController {
         dialog.setHeaderText("Escolha a Meta de Destino");
         dialog.setContentText("Destinar " + formatarMoeda(sobraDesteMes) + " para:");
 
-        Optional<Meta> resultado = dialog.showAndWait();
-        if (resultado.isEmpty()) return;
+        dialog.showAndWait().ifPresent(metaEscolhida -> {
+            try {
+                invService.realizarInvestimento(metaEscolhida, sobraDesteMes, mesAtual);
 
-        Meta metaEscolhida = resultado.get();
+                carregarDadosMetas();
+                atualizarInterface();
+                AlertHelper.showInformation("Sucesso", "Aporte de " + formatarMoeda(sobraDesteMes) + " realizado com sucesso!");
 
-        try {
-            // 1. Atualizar a Meta
-            BigDecimal atual = metaEscolhida.getValorAtual() != null ? metaEscolhida.getValorAtual() : BigDecimal.ZERO;
-            metaEscolhida.setValorAtual(atual.add(sobraDesteMes));
-            metaRepo.atualizar(metaEscolhida);
-
-            // 2. Registrar o Aporte
-            LocalDate ultimoDiaDoMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
-            Conta contaBase = Conta.builder().idConta(1).build();
-            Titular titularBase = Titular.builder().idTitular(1).build();
-
-            Transacao aporte = Transacao.builder()
-                    .descricao("Aporte: " + metaEscolhida.getDescricao())
-                    .valor(sobraDesteMes)
-                    .dataRegisto(LocalDate.now())
-                    .dataCobranca(ultimoDiaDoMes)
-                    .parcelaAtual(1)
-                    .totalParcelas(1)
-                    .status("PAGO")
-                    .tipo("INVESTIMENTO")
-                    .cartao(cartoes.get(0))
-                    .categoria(categorias.get(0))
-                    .conta(contaBase)
-                    .titular(titularBase)
-                    .build();
-
-            TransacaoRepository repo = new TransacaoRepository();
-            repo.salvar(aporte);
-
-            carregarDadosMetas();
-            atualizarInterface();
-
-        } catch (Exception e) {
-            exibirAlertaErro("Erro ao realizar investimento", e.getMessage());
-        }
+            } catch (IllegalStateException e) {
+                AlertHelper.showWarning(e.getMessage());
+            } catch (Exception e) {
+                AlertHelper.showError("Erro ao realizar investimento", e.getMessage());
+            }
+        });
     }
-
-    // =========================================================================
-    // AÇÕES DA TABELA DE TRANSAÇÕES
-    // =========================================================================
 
     @FXML
     public void abrirFormulario() {
@@ -487,7 +367,7 @@ public class DashboardController {
 
             atualizarInterface();
         } catch (Exception e) {
-            exibirAlertaErro("Erro ao abrir formulário", e.getMessage());
+            AlertHelper.showError("Erro ao abrir formulário", e.getMessage());
         }
     }
 
@@ -496,8 +376,7 @@ public class DashboardController {
         Transacao selecionada = tabelaTransacoes.getSelectionModel().getSelectedItem();
 
         if (selecionada == null) {
-            Alert alerta = new Alert(Alert.AlertType.WARNING, "Selecione uma transação na tabela para editar.");
-            alerta.showAndWait();
+            AlertHelper.showWarning("Selecione uma transação na tabela para editar.");
             return;
         }
 
@@ -521,7 +400,7 @@ public class DashboardController {
 
             atualizarInterface();
         } catch (Exception e) {
-            exibirAlertaErro("Erro ao editar transação", e.getMessage());
+            AlertHelper.showError("Erro ao editar transação", e.getMessage());
         }
     }
 
@@ -530,89 +409,21 @@ public class DashboardController {
         Transacao selecionada = tabelaTransacoes.getSelectionModel().getSelectedItem();
 
         if (selecionada == null) {
-            Alert alerta = new Alert(Alert.AlertType.WARNING, "Selecione uma transação na tabela para excluir.");
-            alerta.showAndWait();
+            AlertHelper.showWarning("Selecione uma transação na tabela para excluir.");
             return;
         }
 
-        Alert confirmacao = new Alert(Alert.AlertType.CONFIRMATION, "Excluir transação: " + selecionada.getDescricao() + "?");
-        if (confirmacao.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+        if (AlertHelper.showConfirmation("Excluir", "Excluir transação: " + selecionada.getDescricao() + "?")) {
             try {
                 TransacaoRepository repo = new TransacaoRepository();
                 repo.excluir(selecionada.getIdTransacao());
                 atualizarInterface();
             } catch (Exception e) {
-                exibirAlertaErro("Não foi possível excluir a transação", e.getMessage());
+                AlertHelper.showError("Não foi possível excluir a transação", e.getMessage());
             }
         }
     }
 
-    // =========================================================================
-    // LÓGICA DAS ABAS SECUNDÁRIAS (CARTÕES, CATEGORIAS, METAS)
-    // =========================================================================
-
-    private void configurarColunasCartoes() {
-        colCartaoNome.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getNome()));
-        colCartaoVencimento.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().getDiaVencimento()));
-        colCartaoFechamento.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().getDiaFechamento())); // NOVA COLUNA
-    }
-
-    private void carregarDadosCartoes() {
-        CartaoRepository repo = new CartaoRepository();
-        tabelaCartoes.setItems(FXCollections.observableArrayList(repo.listarTodos()));
-    }
-
-    @FXML
-    public void salvarCartao() {
-        try {
-            String nome = txtNomeCartao.getText();
-            String diaVencTexto = txtDiaVencimento.getText();
-            String diaFechTexto = txtDiaFechamento.getText();
-
-            if (nome == null || nome.trim().isEmpty() || diaVencTexto == null || diaVencTexto.trim().isEmpty() || diaFechTexto == null || diaFechTexto.trim().isEmpty()) {
-                throw new Exception("Preencha todos os campos do cartão.");
-            }
-
-            int diaVenc = Integer.parseInt(diaVencTexto.trim());
-            int diaFech = Integer.parseInt(diaFechTexto.trim());
-            CartaoRepository repo = new CartaoRepository();
-
-            if (cartaoParaEditar != null) {
-                cartaoParaEditar.setNome(nome);
-                cartaoParaEditar.setDiaVencimento(diaVenc);
-                cartaoParaEditar.setDiaFechamento(diaFech);
-                repo.atualizar(cartaoParaEditar);
-                cartaoParaEditar = null;
-            } else {
-                repo.salvar(Cartao.builder().nome(nome).diaVencimento(diaVenc).diaFechamento(diaFech).build());
-            }
-
-            txtNomeCartao.clear();
-            txtDiaVencimento.clear();
-            txtDiaFechamento.clear();
-            carregarDadosCartoes();
-            atualizarInterface();
-        } catch (Exception e) {
-            exibirAlertaErro("Erro ao salvar cartão", e.getMessage());
-        }
-    }
-
-    @FXML
-    public void excluirCartao() {
-        Cartao selecionado = tabelaCartoes.getSelectionModel().getSelectedItem();
-        if (selecionado == null) return;
-
-        try {
-            new CartaoRepository().excluir(selecionado.getIdCartao());
-            txtNomeCartao.clear();
-            txtDiaVencimento.clear();
-            cartaoParaEditar = null;
-            carregarDadosCartoes();
-            atualizarInterface();
-        } catch (Exception e) {
-            exibirAlertaErro("Erro ao excluir cartão", e.getMessage());
-        }
-    }
 
     private void configurarColunasCategorias() {
         colCategoriaNome.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getNome()));
@@ -645,7 +456,7 @@ public class DashboardController {
             carregarDadosCategorias();
             atualizarInterface();
         } catch (Exception e) {
-            exibirAlertaErro("Erro ao salvar categoria", e.getMessage());
+            AlertHelper.showError("Erro ao salvar categoria", e.getMessage());
         }
     }
 
@@ -661,7 +472,7 @@ public class DashboardController {
             carregarDadosCategorias();
             atualizarInterface();
         } catch (Exception e) {
-            exibirAlertaErro("Erro ao excluir categoria", e.getMessage());
+            AlertHelper.showError("Erro ao excluir categoria", e.getMessage());
         }
     }
 
@@ -754,7 +565,7 @@ public class DashboardController {
             carregarDadosMetas();
             atualizarInterface();
         } catch (Exception e) {
-            exibirAlertaErro("Erro ao salvar meta", e.getMessage());
+            AlertHelper.showError("Erro ao salvar meta", e.getMessage());
         }
     }
 
@@ -772,35 +583,12 @@ public class DashboardController {
             carregarDadosMetas();
             atualizarInterface();
         } catch (Exception e) {
-            exibirAlertaErro("Erro ao excluir meta", e.getMessage());
+            AlertHelper.showError("Erro ao excluir meta", e.getMessage());
         }
     }
 
     @FXML
     public void gerarRelatorioReembolsos() {
-        List<Transacao> reembolsaveis;
-        BigDecimal totalReembolso = BigDecimal.ZERO;
-
-        try {
-            // Busca os dados diretamente pelo TransacaoRepository sem SQL no Controller
-            TransacaoRepository repo = new TransacaoRepository();
-            reembolsaveis = repo.listarReembolsaveisPorMes(mesAtual);
-
-            for (Transacao t : reembolsaveis) {
-                if (t.getValor() != null) {
-                    totalReembolso = totalReembolso.add(t.getValor());
-                }
-            }
-        } catch (SQLException e) {
-            exibirAlertaErro("Erro ao buscar transações reembolsáveis", e.getMessage());
-            return;
-        }
-
-        if (reembolsaveis.isEmpty()) {
-            new Alert(Alert.AlertType.INFORMATION, "Nenhuma despesa reembolsável encontrada para o mês " + lblMesAno.getText()).showAndWait();
-            return;
-        }
-
         javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
         fileChooser.setTitle("Salvar Relatório de Reembolsos");
         fileChooser.setInitialFileName("Relatorio_Reembolsos_" + mesAtual.format(DateTimeFormatter.ofPattern("MM_yyyy")) + ".pdf");
@@ -810,73 +598,16 @@ public class DashboardController {
 
         if (file != null) {
             try {
-                com.lowagie.text.Document document = new com.lowagie.text.Document();
-                com.lowagie.text.pdf.PdfWriter.getInstance(document, new java.io.FileOutputStream(file));
+                RelatorioPdfService pdfService = new RelatorioPdfService();
+                pdfService.gerarRelatorio(file, mesAtual, lblMesAno.getText());
 
-                document.open();
-
-                com.lowagie.text.Font fontTitulo = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 18);
-                com.lowagie.text.Font fontSub = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 12);
-                com.lowagie.text.Font fontHeaderTab = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10);
-                com.lowagie.text.Font fontCorpo = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10);
-
-                com.lowagie.text.Paragraph pTitulo = new com.lowagie.text.Paragraph("Relatório de Despesas a Reembolsar", fontTitulo);
-                pTitulo.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                document.add(pTitulo);
-
-                com.lowagie.text.Paragraph pData = new com.lowagie.text.Paragraph("Período: " + lblMesAno.getText() + " | Gerado em: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), fontSub);
-                pData.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                pData.setSpacingAfter(20);
-                document.add(pData);
-
-                com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(5);
-                table.setWidthPercentage(100);
-                table.setWidths(new float[]{2f, 4f, 2.5f, 2.5f, 2.5f});
-
-                String[] colunas = {"Data", "Descrição", "Cartão", "Categoria", "Valor (R$)"};
-                for (String col : colunas) {
-                    com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(col, fontHeaderTab));
-                    cell.setBackgroundColor(java.awt.Color.LIGHT_GRAY);
-                    cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                    cell.setPadding(6);
-                    table.addCell(cell);
-                }
-
-                DateTimeFormatter fmtData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                for (Transacao t : reembolsaveis) {
-                    table.addCell(new com.lowagie.text.Phrase(t.getDataCobranca().format(fmtData), fontCorpo));
-                    table.addCell(new com.lowagie.text.Phrase(t.getDescricao(), fontCorpo));
-                    table.addCell(new com.lowagie.text.Phrase(t.getCartao() != null ? t.getCartao().getNome() : "-", fontCorpo));
-                    table.addCell(new com.lowagie.text.Phrase(t.getCategoria() != null ? t.getCategoria().getNome() : "-", fontCorpo));
-
-                    com.lowagie.text.pdf.PdfPCell cVal = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("R$ %,.2f", t.getValor()), fontCorpo));
-                    cVal.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                    table.addCell(cVal);
-                }
-
-                document.add(table);
-
-                com.lowagie.text.Paragraph pTotal = new com.lowagie.text.Paragraph(String.format("Total a Reembolsar: R$ %,.2f", totalReembolso), fontTitulo);
-                pTotal.setAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                pTotal.setSpacingBefore(15);
-                document.add(pTotal);
-
-                document.close();
-
-                new Alert(Alert.AlertType.INFORMATION, "Relatório PDF gerado com sucesso em:\n" + file.getAbsolutePath()).showAndWait();
-
+                AlertHelper.showInformation("Sucesso", "Relatório PDF gerado com sucesso em:\n" + file.getAbsolutePath());
+            } catch (IllegalStateException e) {
+                AlertHelper.showInformation("Relatório Vazio", e.getMessage());
             } catch (Exception e) {
-                exibirAlertaErro("Erro ao gerar arquivo PDF", e.getMessage());
+                AlertHelper.showError("Erro ao gerar arquivo PDF", e.getMessage());
             }
         }
-    }
-
-    private void exibirAlertaErro(String titulo, String mensagem) {
-        Alert alerta = new Alert(Alert.AlertType.ERROR);
-        alerta.setTitle("Erro");
-        alerta.setHeaderText(titulo);
-        alerta.setContentText(mensagem);
-        alerta.showAndWait();
     }
 
     private static final java.text.NumberFormat FMT_MOEDA = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("pt", "BR"));
