@@ -1,18 +1,17 @@
 package org.cdg.controller;
 
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.cdg.model.*;
 import org.cdg.repository.*;
 import org.cdg.service.InvestimentoService;
 import org.cdg.service.RelatorioPdfService;
+import org.cdg.service.TransacaoService;
 import org.cdg.util.AlertHelper;
 
 import java.math.BigDecimal;
@@ -21,13 +20,8 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 
 public class DashboardController {
-
-    private Cartao cartaoParaEditar = null;
-    private Categoria categoriaParaEditar = null;
-    private Meta metaParaEditar = null;
 
     // --- ELEMENTOS DA DASHBOARD PRINCIPAL ---
     @FXML private Label lblSobra;
@@ -49,23 +43,9 @@ public class DashboardController {
     @FXML private TableColumn<Transacao, String> colValor;
     @FXML private TableColumn<Transacao, String> colStatus;
 
-
-    // --- ELEMENTOS DA ABA CATEGORIAS ---
-    @FXML private TextField txtNomeCategoria;
-    @FXML private TableView<Categoria> tabelaCategorias;
-    @FXML private TableColumn<Categoria, String> colCategoriaNome;
-
-    // --- ELEMENTOS DA ABA METAS ---
-    @FXML private TextField txtDescricaoMeta;
-    @FXML private TextField txtValorAlvoMeta;
-    @FXML private TextField txtDataLimiteMeta;
-    @FXML private TableView<Meta> tabelaMetas;
-    @FXML private TableColumn<Meta, String> colMetaDescricao;
-    @FXML private TableColumn<Meta, String> colMetaAlvo;
-    @FXML private TableColumn<Meta, String> colMetaProgresso;
-
     private LocalDate mesAtual = LocalDate.now();
     private BigDecimal sobraDesteMes = BigDecimal.ZERO;
+    private final TransacaoService transacaoService = new TransacaoService();
 
     @FXML
     public void initialize() {
@@ -74,57 +54,7 @@ public class DashboardController {
         configurarColunas();
         atualizarInterface();
 
-
-
-        configurarColunasCategorias();
-        carregarDadosCategorias();
-
-        configurarColunasMetas();
-        carregarDadosMetas();
-
-
-        tabelaCategorias.getSelectionModel().selectedItemProperty().addListener((obs, antigo, novo) -> {
-            if (novo != null) {
-                categoriaParaEditar = novo;
-                txtNomeCategoria.setText(novo.getNome());
-            }
-        });
-
-        tabelaMetas.getSelectionModel().selectedItemProperty().addListener((obs, antigo, novo) -> {
-            if (novo != null) {
-                metaParaEditar = novo;
-                txtDescricaoMeta.setText(novo.getDescricao());
-                txtValorAlvoMeta.setText(novo.getValorAlvo() != null ? novo.getValorAlvo().toString() : "");
-                if (novo.getDataLimite() != null) {
-                    txtDataLimiteMeta.setText(novo.getDataLimite().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-                }
-            }
-        });
     }
-
-    @FXML
-    public void criarNovaCategoriaRapida() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Nova Categoria");
-        dialog.setHeaderText("Cadastrar Categoria Rapidamente");
-        dialog.setContentText("Nome da Categoria:");
-
-        dialog.showAndWait().ifPresent(nome -> {
-            String nomeFormatado = nome.trim();
-            if (!nomeFormatado.isEmpty()) {
-                try {
-                    Categoria nova = Categoria.builder().nome(nomeFormatado).build();
-                    new CategoriaRepository().salvar(nova);
-                    carregarDadosCategorias();
-                    atualizarInterface();
-                } catch (Exception e) {
-                    AlertHelper.showError("Erro ao cadastrar categoria rápida", e.getMessage());
-                }
-            }
-        });
-    }
-
-
 
     @FXML
     public void mesAnterior() {
@@ -188,8 +118,7 @@ public class DashboardController {
 
     private void carregarDadosTabela() {
         try {
-            TransacaoRepository repo = new TransacaoRepository();
-            ResumoMensalDTO resumo = repo.obterResumoMensal(mesAtual);
+            ResumoMensalDTO resumo = transacaoService.obterResumoMensal(mesAtual);
 
             tabelaTransacoes.setItems(FXCollections.observableArrayList(resumo.getTransacoes()));
             sobraDesteMes = resumo.getSobra();
@@ -336,7 +265,6 @@ public class DashboardController {
             try {
                 invService.realizarInvestimento(metaEscolhida, sobraDesteMes, mesAtual);
 
-                carregarDadosMetas();
                 atualizarInterface();
                 AlertHelper.showInformation("Sucesso", "Aporte de " + formatarMoeda(sobraDesteMes) + " realizado com sucesso!");
 
@@ -415,175 +343,11 @@ public class DashboardController {
 
         if (AlertHelper.showConfirmation("Excluir", "Excluir transação: " + selecionada.getDescricao() + "?")) {
             try {
-                TransacaoRepository repo = new TransacaoRepository();
-                repo.excluir(selecionada.getIdTransacao());
+                transacaoService.excluir(selecionada.getIdTransacao());
                 atualizarInterface();
             } catch (Exception e) {
                 AlertHelper.showError("Não foi possível excluir a transação", e.getMessage());
             }
-        }
-    }
-
-
-    private void configurarColunasCategorias() {
-        colCategoriaNome.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getNome()));
-    }
-
-    private void carregarDadosCategorias() {
-        CategoriaRepository repo = new CategoriaRepository();
-        tabelaCategorias.setItems(FXCollections.observableArrayList(repo.listarTodas()));
-    }
-
-    @FXML
-    public void salvarCategoria() {
-        try {
-            String nome = txtNomeCategoria.getText();
-            if (nome == null || nome.trim().isEmpty()) {
-                throw new Exception("Preencha o nome da categoria.");
-            }
-
-            CategoriaRepository repo = new CategoriaRepository();
-
-            if (categoriaParaEditar != null) {
-                categoriaParaEditar.setNome(nome);
-                repo.atualizar(categoriaParaEditar);
-                categoriaParaEditar = null;
-            } else {
-                repo.salvar(Categoria.builder().nome(nome).build());
-            }
-
-            txtNomeCategoria.clear();
-            carregarDadosCategorias();
-            atualizarInterface();
-        } catch (Exception e) {
-            AlertHelper.showError("Erro ao salvar categoria", e.getMessage());
-        }
-    }
-
-    @FXML
-    public void excluirCategoria() {
-        Categoria selecionada = tabelaCategorias.getSelectionModel().getSelectedItem();
-        if (selecionada == null) return;
-
-        try {
-            new CategoriaRepository().excluir(selecionada.getIdCategoria());
-            txtNomeCategoria.clear();
-            categoriaParaEditar = null;
-            carregarDadosCategorias();
-            atualizarInterface();
-        } catch (Exception e) {
-            AlertHelper.showError("Erro ao excluir categoria", e.getMessage());
-        }
-    }
-
-    private void configurarColunasMetas() {
-        colMetaDescricao.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDescricao()));
-        colMetaAlvo.setCellValueFactory(cell -> new SimpleStringProperty(
-                cell.getValue().getValorAlvo() != null ? String.format("R$ %,.2f", cell.getValue().getValorAlvo()) : "R$ 0,00"));
-
-        colMetaProgresso.setCellFactory(column -> new TableCell<Meta, String>() {
-            private final ProgressBar progressBar = new ProgressBar(0);
-            private final Label lblStatusMeta = new Label("0.0%");
-            private final HBox container = new HBox(8, progressBar, lblStatusMeta);
-
-            {
-                container.setAlignment(Pos.CENTER_LEFT);
-                progressBar.setPrefWidth(100);
-                progressBar.setStyle("-fx-accent: #3574f0;");
-                lblStatusMeta.setStyle("-fx-text-fill: #bcbec4; -fx-font-size: 11px;");
-            }
-
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
-                    setGraphic(null);
-                } else {
-                    Meta meta = getTableRow().getItem();
-                    BigDecimal alvo = meta.getValorAlvo() != null ? meta.getValorAlvo() : BigDecimal.ZERO;
-                    BigDecimal acumulado = meta.getValorAtual() != null ? meta.getValorAtual() : BigDecimal.ZERO;
-
-                    if (alvo.compareTo(BigDecimal.ZERO) > 0) {
-                        double fracao = acumulado.divide(alvo, 4, RoundingMode.HALF_UP).doubleValue();
-                        progressBar.setProgress(Math.min(fracao, 1.0));
-
-                        BigDecimal percentual = acumulado.multiply(new BigDecimal("100")).divide(alvo, 1, RoundingMode.HALF_UP);
-                        BigDecimal falta = alvo.subtract(acumulado);
-                        if (falta.compareTo(BigDecimal.ZERO) < 0) falta = BigDecimal.ZERO;
-
-                        lblStatusMeta.setText(String.format("%.1f%% (Falta R$ %,.2f)", percentual.doubleValue(), falta));
-                    } else {
-                        progressBar.setProgress(0);
-                        lblStatusMeta.setText("0.0%");
-                    }
-                    setGraphic(container);
-                }
-            }
-        });
-    }
-
-    private void carregarDadosMetas() {
-        MetaRepository repo = new MetaRepository();
-        tabelaMetas.setItems(FXCollections.observableArrayList(repo.listarTodas()));
-    }
-
-    @FXML
-    public void salvarMeta() {
-        try {
-            String desc = txtDescricaoMeta.getText();
-            BigDecimal alvo = new BigDecimal(txtValorAlvoMeta.getText().replace(",", ".").trim());
-
-            String textoData = txtDataLimiteMeta.getText().trim();
-            if (textoData.matches("\\d{2}/\\d{2}/\\d{2}")) {
-                textoData = textoData.substring(0, 6) + "20" + textoData.substring(6);
-            }
-
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            LocalDate limite = LocalDate.parse(textoData, fmt);
-
-            MetaRepository repo = new MetaRepository();
-
-            if (metaParaEditar != null) {
-                metaParaEditar.setDescricao(desc);
-                metaParaEditar.setValorAlvo(alvo);
-                metaParaEditar.setDataLimite(limite);
-                repo.atualizar(metaParaEditar);
-                metaParaEditar = null;
-            } else {
-                repo.salvar(Meta.builder()
-                        .descricao(desc)
-                        .valorAlvo(alvo)
-                        .valorAtual(BigDecimal.ZERO)
-                        .dataLimite(limite)
-                        .build());
-            }
-
-            txtDescricaoMeta.clear();
-            txtValorAlvoMeta.clear();
-            txtDataLimiteMeta.clear();
-
-            carregarDadosMetas();
-            atualizarInterface();
-        } catch (Exception e) {
-            AlertHelper.showError("Erro ao salvar meta", e.getMessage());
-        }
-    }
-
-    @FXML
-    public void excluirMeta() {
-        Meta selecionada = tabelaMetas.getSelectionModel().getSelectedItem();
-        if (selecionada == null) return;
-
-        try {
-            new MetaRepository().excluir(selecionada.getIdMeta());
-            txtDescricaoMeta.clear();
-            txtValorAlvoMeta.clear();
-            txtDataLimiteMeta.clear();
-            metaParaEditar = null;
-            carregarDadosMetas();
-            atualizarInterface();
-        } catch (Exception e) {
-            AlertHelper.showError("Erro ao excluir meta", e.getMessage());
         }
     }
 

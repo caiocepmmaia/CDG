@@ -115,46 +115,16 @@
 
         <!-- ABA GERIR CATEGORIAS -->
         <Tab text="Categorias">
-            <VBox spacing="8" style="-fx-padding: 8 0 0 0;">
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <TextField fx:id="txtNomeCategoria" promptText="Nome da Categoria (ex: Alimentação)"/>
-                    <Button text="Salvar Categoria" onAction="#salvarCategoria" style="-fx-background-color: #3574f0; -fx-text-fill: white; -fx-cursor: hand;"/>
-                    <Button text="Excluir Categoria" onAction="#excluirCategoria" style="-fx-background-color: #2b2d30; -fx-text-fill: #f75454; -fx-cursor: hand;"/>
-                </HBox>
-
-                <TableView fx:id="tabelaCategorias" VBox.vgrow="ALWAYS">
-                    <columns>
-                        <TableColumn fx:id="colCategoriaNome" text="Nome da Categoria" prefWidth="300"/>
-                    </columns>
-                    <columnResizePolicy>
-                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-                    </columnResizePolicy>
-                </TableView>
-            </VBox>
+            <content>
+                <fx:include source="aba_categorias.fxml" />
+            </content>
         </Tab>
 
-        <!-- ABA GERIR METAS -->
-        <Tab text="Gerenciar Metas">
-            <VBox spacing="8" style="-fx-padding: 8 0 0 0;">
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <TextField fx:id="txtDescricaoMeta" promptText="Descrição (ex: Moto, Emergência)"/>
-                    <TextField fx:id="txtValorAlvoMeta" promptText="Valor Objetivo (R$)" prefWidth="150"/>
-                    <TextField fx:id="txtDataLimiteMeta" promptText="Data Limite (DD/MM/AAAA)" prefWidth="180"/>
-                    <Button text="Salvar Meta" onAction="#salvarMeta" style="-fx-background-color: #3574f0; -fx-text-fill: white; -fx-cursor: hand;"/>
-                    <Button text="Excluir Meta" onAction="#excluirMeta" style="-fx-background-color: #2b2d30; -fx-text-fill: #f75454; -fx-cursor: hand;"/>
-                </HBox>
-
-                <TableView fx:id="tabelaMetas" VBox.vgrow="ALWAYS">
-                    <columns>
-                        <TableColumn fx:id="colMetaDescricao" text="Objetivo" prefWidth="200"/>
-                        <TableColumn fx:id="colMetaAlvo" text="Valor Objetivo" prefWidth="150"/>
-                        <TableColumn fx:id="colMetaProgresso" text="Progresso Acumulado" prefWidth="300"/>
-                    </columns>
-                    <columnResizePolicy>
-                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-                    </columnResizePolicy>
-                </TableView>
-            </VBox>
+        <!-- ABA METAS -->
+        <Tab text="Metas">
+            <content>
+                <fx:include source="aba_metas.fxml" />
+            </content>
         </Tab>
     </TabPane>
 </VBox>

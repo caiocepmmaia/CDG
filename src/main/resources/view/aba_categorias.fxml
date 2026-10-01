@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="8" style="-fx-padding: 8 0 0 0;" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.cdg.controller.CategoriaController">
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="txtNomeCategoria" promptText="Nome da Categoria (ex: Alimentação)"/>
+        <Button text="Salvar Categoria" onAction="#salvarCategoria" style="-fx-background-color: #3574f0; -fx-text-fill: white; -fx-cursor: hand;"/>
+        <Button text="Excluir Categoria" onAction="#excluirCategoria" style="-fx-background-color: #2b2d30; -fx-text-fill: #f75454; -fx-cursor: hand;"/>
+    </HBox>
+
+    <TableView fx:id="tabelaCategorias" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colCategoriaNome" text="Nome da Categoria" prefWidth="300"/>
+        </columns>
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+    </TableView>
+</VBox>

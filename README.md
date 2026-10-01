@@ -37,7 +37,9 @@ src/
 │   │   ├── AtualizarBanco.java      # Script utilitário para resetar/limpar o banco de dados
 │   │   ├── controller/              # Controladores das telas (Dashboard, Formulários)
 │   │   ├── model/                   # Classes de domínio e DTOs
-│   │   └── repository/              # Camada de persistência e comunicação com SQLite
+│   │   ├── repository/              # Camada de persistência e comunicação com SQLite
+│   │   ├──service/                  # Regras de negocios
+│   │   └──util/                     # Funcoes auxiliares
 │   └── resources/
 │       ├── database/                # Ficheiro da base de dados SQLite (financas.db)
 │       └── view/                    # Ficheiros FXML e estilos CSS (Tema Cosmic)
