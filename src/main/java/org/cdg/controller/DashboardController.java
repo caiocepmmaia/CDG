@@ -8,7 +8,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.cdg.model.*;
-import org.cdg.repository.*;
+import org.cdg.service.DashboardService;
 import org.cdg.service.InvestimentoService;
 import org.cdg.service.RelatorioPdfService;
 import org.cdg.service.TransacaoService;
@@ -16,14 +16,12 @@ import org.cdg.util.AlertHelper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class DashboardController {
 
-    // --- ELEMENTOS DA DASHBOARD PRINCIPAL ---
     @FXML private Label lblSobra;
     @FXML private Label lblDeficit;
     @FXML private Label lblReembolso;
@@ -45,15 +43,16 @@ public class DashboardController {
 
     private LocalDate mesAtual = LocalDate.now();
     private BigDecimal sobraDesteMes = BigDecimal.ZERO;
+
+    // Injeção limpa dos serviços
+    private final DashboardService dashboardService = new DashboardService();
     private final TransacaoService transacaoService = new TransacaoService();
 
     @FXML
     public void initialize() {
         btnInvestirSobra.managedProperty().bind(btnInvestirSobra.visibleProperty());
-
         configurarColunas();
         atualizarInterface();
-
     }
 
     @FXML
@@ -72,68 +71,40 @@ public class DashboardController {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM / yyyy");
         lblMesAno.setText(mesAtual.format(fmt));
 
-        carregarDadosTabela();
-        carregarFaturasCartoes();
-        carregarGastosCategorias();
-        carregarCardsMetasDashboard();
-    }
-
-    private void configurarColunas() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-        colDescricao.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDescricao()));
-
-        colDataCompra.setCellValueFactory(cellData -> {
-            LocalDate d = cellData.getValue().getDataRegisto();
-            return new SimpleStringProperty(d != null ? d.format(formatter) : "-");
-        });
-        colData.setCellValueFactory(cellData -> {
-            LocalDate d = cellData.getValue().getDataCobranca();
-            return new SimpleStringProperty(d != null ? d.format(formatter) : "-");
-        });
-
-        colCartao.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getCartao() != null && cellData.getValue().getCartao().getNome() != null) {
-                return new SimpleStringProperty(cellData.getValue().getCartao().getNome());
-            }
-            return new SimpleStringProperty("-");
-        });
-
-        colCategoria.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getCategoria() != null && cellData.getValue().getCategoria().getNome() != null) {
-                return new SimpleStringProperty(cellData.getValue().getCategoria().getNome());
-            }
-            return new SimpleStringProperty("-");
-        });
-
-        colValor.setCellValueFactory(cellData -> {
-            Transacao t = cellData.getValue();
-            boolean isReceita = "RECEITA".equalsIgnoreCase(t.getTipo());
-            String sinal = isReceita ? "+ " : "- ";
-            return new SimpleStringProperty(sinal + formatarMoeda(t.getValor()));
-        });
-
-        colStatus.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getStatus()));
-    }
-
-    private void carregarDadosTabela() {
         try {
-            ResumoMensalDTO resumo = transacaoService.obterResumoMensal(mesAtual);
+            // O Controller apenas pede o ViewModel pronto ao Service
+            DashboardViewModel vm = dashboardService.carregarDadosDashboard(mesAtual);
 
-            tabelaTransacoes.setItems(FXCollections.observableArrayList(resumo.getTransacoes()));
-            sobraDesteMes = resumo.getSobra();
-            atualizarResumoMensal(resumo.getTotalDespesas(), resumo.getTotalReembolsos());
+            sobraDesteMes = vm.getSobra();
+            tabelaTransacoes.setItems(FXCollections.observableArrayList(vm.getTransacoes()));
 
-        } catch (SQLException e) {
-            AlertHelper.showError("Erro ao carregar transações", e.getMessage());
+            atualizarResumoVisual(vm);
+            renderizarMetas(vm.getMetas());
+            renderizarCardsAgrupados(boxFaturasCartoes, vm.getFaturasCartoes(), "#ffb74d");
+            renderizarCardsAgrupados(boxGastosCategorias, vm.getGastosCategorias(), "#00c853");
+
+        } catch (Exception e) {
+            AlertHelper.showError("Erro ao carregar dashboard", e.getMessage());
         }
     }
 
-    private void carregarCardsMetasDashboard() {
-        boxCardsMetas.getChildren().clear();
-        MetaRepository repo = new MetaRepository();
+    private void atualizarResumoVisual(DashboardViewModel vm) {
+        lblDeficit.setText(formatarMoeda(vm.getTotalDespesas()));
+        lblReembolso.setText(formatarMoeda(vm.getTotalReembolsos()));
+        lblSobra.setText(formatarMoeda(vm.getSobra()));
 
-        for (Meta m : repo.listarTodas()) {
+        if (vm.getSobra().compareTo(BigDecimal.ZERO) < 0) {
+            lblSobra.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f75454;");
+            btnInvestirSobra.setVisible(false);
+        } else {
+            lblSobra.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #00c853;");
+            btnInvestirSobra.setVisible(vm.isTemSobraPositiva());
+        }
+    }
+
+    private void renderizarMetas(List<Meta> metas) {
+        boxCardsMetas.getChildren().clear();
+        for (Meta m : metas) {
             BigDecimal alvo = m.getValorAlvo() != null ? m.getValorAlvo() : BigDecimal.ZERO;
             BigDecimal acumulado = m.getValorAtual() != null ? m.getValorAtual() : BigDecimal.ZERO;
 
@@ -141,9 +112,7 @@ public class DashboardController {
                     acumulado.divide(alvo, 4, RoundingMode.HALF_UP).doubleValue() : 0.0;
 
             BigDecimal falta = alvo.subtract(acumulado);
-            if (falta.compareTo(BigDecimal.ZERO) < 0) {
-                falta = BigDecimal.ZERO;
-            }
+            if (falta.compareTo(BigDecimal.ZERO) < 0) falta = BigDecimal.ZERO;
 
             BigDecimal pct = alvo.compareTo(BigDecimal.ZERO) > 0 ?
                     acumulado.multiply(new BigDecimal("100")).divide(alvo, 0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
@@ -160,7 +129,6 @@ public class DashboardController {
             ring.setStyle(fracao >= 1.0 ? "-fx-progress-color: #00c853;" : "-fx-progress-color: #3574f0;");
 
             VBox info = new VBox(2);
-
             HBox linhaNome = new HBox(6);
             linhaNome.setAlignment(Pos.CENTER_LEFT);
 
@@ -187,61 +155,47 @@ public class DashboardController {
         }
     }
 
-    private VBox criarCardVisual(String titulo, BigDecimal valor, String corHex) {
-        VBox card = new VBox(4);
-        card.setStyle("-fx-background-color: #212225; -fx-padding: 10 16; -fx-background-radius: 6; -fx-border-color: #37393e; -fx-border-radius: 6;");
-        card.setAlignment(Pos.CENTER);
-        card.setMinWidth(160);
+    private void renderizarCardsAgrupados(HBox containerBox, List<GastoAgrupadoDTO> itens, String corHex) {
+        containerBox.getChildren().clear();
+        for (GastoAgrupadoDTO item : itens) {
+            VBox card = new VBox(4);
+            card.setStyle("-fx-background-color: #212225; -fx-padding: 10 16; -fx-background-radius: 6; -fx-border-color: #37393e; -fx-border-radius: 6;");
+            card.setAlignment(Pos.CENTER);
+            card.setMinWidth(160);
 
-        Label lblNome = new Label(titulo);
-        lblNome.setStyle("-fx-font-size: 11px; -fx-text-fill: #9da5b4; -fx-font-weight: bold;");
+            Label lblNome = new Label(item.getNome());
+            lblNome.setStyle("-fx-font-size: 11px; -fx-text-fill: #9da5b4; -fx-font-weight: bold;");
 
-        Label lblTotal = new Label(formatarMoeda(valor));
-        lblTotal.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + corHex + ";");
+            Label lblTotal = new Label(formatarMoeda(item.getTotal()));
+            lblTotal.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + corHex + ";");
 
-        card.getChildren().addAll(lblNome, lblTotal);
-        return card;
-    }
-
-    private void carregarGastosCategorias() {
-        boxGastosCategorias.getChildren().clear();
-        try {
-            List<GastoAgrupadoDTO> gastos = new CategoriaRepository().obterGastosPorMes(mesAtual);
-            for (GastoAgrupadoDTO item : gastos) {
-                VBox card = criarCardVisual(item.getNome(), item.getTotal(), "#00c853");
-                boxGastosCategorias.getChildren().add(card);
-            }
-        } catch (SQLException e) {
-            AlertHelper.showError("Erro ao carregar gastos por categoria", e.getMessage());
+            card.getChildren().addAll(lblNome, lblTotal);
+            containerBox.getChildren().add(card);
         }
     }
 
-    private void carregarFaturasCartoes() {
-        boxFaturasCartoes.getChildren().clear();
-        try {
-            List<GastoAgrupadoDTO> faturas = new CartaoRepository().obterFaturasPorMes(mesAtual);
-            for (GastoAgrupadoDTO item : faturas) {
-                VBox card = criarCardVisual(item.getNome(), item.getTotal(), "#ffb74d");
-                boxFaturasCartoes.getChildren().add(card);
-            }
-        } catch (SQLException e) {
-            AlertHelper.showError("Erro ao carregar faturas dos cartões", e.getMessage());
-        }
-    }
+    private void configurarColunas() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private void atualizarResumoMensal(BigDecimal despesas, BigDecimal reembolsos) {
-        lblDeficit.setText(formatarMoeda(despesas));
-        lblReembolso.setText(formatarMoeda(reembolsos));
-
-        if (sobraDesteMes.compareTo(BigDecimal.ZERO) < 0) {
-            lblSobra.setText(formatarMoeda(sobraDesteMes));
-            lblSobra.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f75454;");
-            btnInvestirSobra.setVisible(false);
-        } else {
-            lblSobra.setText(formatarMoeda(sobraDesteMes));
-            lblSobra.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #00c853;");
-            btnInvestirSobra.setVisible(sobraDesteMes.compareTo(BigDecimal.ZERO) > 0);
-        }
+        colDescricao.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDescricao()));
+        colDataCompra.setCellValueFactory(cell -> {
+            LocalDate d = cell.getValue().getDataRegisto();
+            return new SimpleStringProperty(d != null ? d.format(formatter) : "-");
+        });
+        colData.setCellValueFactory(cell -> {
+            LocalDate d = cell.getValue().getDataCobranca();
+            return new SimpleStringProperty(d != null ? d.format(formatter) : "-");
+        });
+        colCartao.setCellValueFactory(cell -> new SimpleStringProperty(
+                cell.getValue().getCartao() != null ? cell.getValue().getCartao().getNome() : "-"));
+        colCategoria.setCellValueFactory(cell -> new SimpleStringProperty(
+                cell.getValue().getCategoria() != null ? cell.getValue().getCategoria().getNome() : "-"));
+        colValor.setCellValueFactory(cell -> {
+            Transacao t = cell.getValue();
+            boolean isReceita = "RECEITA".equalsIgnoreCase(t.getTipo());
+            return new SimpleStringProperty((isReceita ? "+ " : "- ") + formatarMoeda(t.getValor()));
+        });
+        colStatus.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getStatus()));
     }
 
     @FXML
@@ -264,12 +218,8 @@ public class DashboardController {
         dialog.showAndWait().ifPresent(metaEscolhida -> {
             try {
                 invService.realizarInvestimento(metaEscolhida, sobraDesteMes, mesAtual);
-
                 atualizarInterface();
                 AlertHelper.showInformation("Sucesso", "Aporte de " + formatarMoeda(sobraDesteMes) + " realizado com sucesso!");
-
-            } catch (IllegalStateException e) {
-                AlertHelper.showWarning(e.getMessage());
             } catch (Exception e) {
                 AlertHelper.showError("Erro ao realizar investimento", e.getMessage());
             }
@@ -278,49 +228,32 @@ public class DashboardController {
 
     @FXML
     public void abrirFormulario() {
-        try {
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/view/transacao_form.fxml"));
-            javafx.scene.Parent root = loader.load();
-
-            javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Nova Transação");
-
-            javafx.scene.Scene scene = new javafx.scene.Scene(root);
-            scene.getStylesheets().add(getClass().getResource("/view/style.css").toExternalForm());
-
-            stage.setScene(scene);
-            stage.initOwner(tabelaTransacoes.getScene().getWindow());
-            stage.initModality(javafx.stage.Modality.WINDOW_MODAL);
-            stage.showAndWait();
-
-            atualizarInterface();
-        } catch (Exception e) {
-            AlertHelper.showError("Erro ao abrir formulário", e.getMessage());
-        }
+        abrirJanelaModal("/view/transacao_form.fxml", "Nova Transação", null);
     }
 
     @FXML
     public void editarTransacao() {
         Transacao selecionada = tabelaTransacoes.getSelectionModel().getSelectedItem();
-
         if (selecionada == null) {
             AlertHelper.showWarning("Selecione uma transação na tabela para editar.");
             return;
         }
+        abrirJanelaModal("/view/transacao_form.fxml", "Editar Transação", selecionada);
+    }
 
+    private void abrirJanelaModal(String fxmlPath, String titulo, Transacao transacaoParaEditar) {
         try {
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/view/transacao_form.fxml"));
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(fxmlPath));
             javafx.scene.Parent root = loader.load();
 
-            TransacaoFormController formController = loader.getController();
-            formController.setTransacaoParaEditar(selecionada);
+            if (transacaoParaEditar != null && loader.getController() instanceof TransacaoFormController) {
+                ((TransacaoFormController) loader.getController()).setTransacaoParaEditar(transacaoParaEditar);
+            }
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Editar Transação");
-
+            stage.setTitle(titulo);
             javafx.scene.Scene scene = new javafx.scene.Scene(root);
             scene.getStylesheets().add(getClass().getResource("/view/style.css").toExternalForm());
-
             stage.setScene(scene);
             stage.initOwner(tabelaTransacoes.getScene().getWindow());
             stage.initModality(javafx.stage.Modality.WINDOW_MODAL);
@@ -328,14 +261,13 @@ public class DashboardController {
 
             atualizarInterface();
         } catch (Exception e) {
-            AlertHelper.showError("Erro ao editar transação", e.getMessage());
+            AlertHelper.showError("Erro", e.getMessage());
         }
     }
 
     @FXML
     public void excluirTransacao() {
         Transacao selecionada = tabelaTransacoes.getSelectionModel().getSelectedItem();
-
         if (selecionada == null) {
             AlertHelper.showWarning("Selecione uma transação na tabela para excluir.");
             return;
@@ -346,7 +278,7 @@ public class DashboardController {
                 transacaoService.excluir(selecionada.getIdTransacao());
                 atualizarInterface();
             } catch (Exception e) {
-                AlertHelper.showError("Não foi possível excluir a transação", e.getMessage());
+                AlertHelper.showError("Não foi possível excluir", e.getMessage());
             }
         }
     }
@@ -362,20 +294,15 @@ public class DashboardController {
 
         if (file != null) {
             try {
-                RelatorioPdfService pdfService = new RelatorioPdfService();
-                pdfService.gerarRelatorio(file, mesAtual, lblMesAno.getText());
-
+                new RelatorioPdfService().gerarRelatorio(file, mesAtual, lblMesAno.getText());
                 AlertHelper.showInformation("Sucesso", "Relatório PDF gerado com sucesso em:\n" + file.getAbsolutePath());
-            } catch (IllegalStateException e) {
-                AlertHelper.showInformation("Relatório Vazio", e.getMessage());
             } catch (Exception e) {
-                AlertHelper.showError("Erro ao gerar arquivo PDF", e.getMessage());
+                AlertHelper.showError("Erro ao gerar PDF", e.getMessage());
             }
         }
     }
 
     private static final java.text.NumberFormat FMT_MOEDA = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("pt", "BR"));
-
     private String formatarMoeda(BigDecimal valor) {
         if (valor == null) valor = BigDecimal.ZERO;
         return FMT_MOEDA.format(valor);

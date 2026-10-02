@@ -1,10 +1,12 @@
-// FICHEIRO: src/main/java/org/cdg/service/InvestimentoService.java
 package org.cdg.service;
 
 import org.cdg.model.*;
 import org.cdg.repository.*;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -27,29 +29,63 @@ public class InvestimentoService {
             throw new IllegalStateException("Cadastre pelo menos 1 cartão e 1 categoria antes de investir.");
         }
 
-        BigDecimal atual = metaEscolhida.getValorAtual() != null ? metaEscolhida.getValorAtual() : BigDecimal.ZERO;
-        metaEscolhida.setValorAtual(atual.add(valorSobra));
-        metaRepo.atualizar(metaEscolhida);
+        // Obtém uma única conexão para garantir a transação atómica
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Desativa o auto-commit para controlarmos a transação manualmente
+            conn.setAutoCommit(false);
 
-        LocalDate ultimoDiaDoMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
-        Conta contaBase = Conta.builder().idConta(1).build();
-        Titular titularBase = Titular.builder().idTitular(1).build();
+            try {
+                // 1. Atualiza o valor atual da meta
+                BigDecimal atual = metaEscolhida.getValorAtual() != null ? metaEscolhida.getValorAtual() : BigDecimal.ZERO;
+                metaEscolhida.setValorAtual(atual.add(valorSobra));
 
-        Transacao aporte = Transacao.builder()
-                .descricao("Aporte: " + metaEscolhida.getDescricao())
-                .valor(valorSobra)
-                .dataRegisto(LocalDate.now())
-                .dataCobranca(ultimoDiaDoMes)
-                .parcelaAtual(1)
-                .totalParcelas(1)
-                .status("PAGO")
-                .tipo("INVESTIMENTO")
-                .cartao(cartoes.get(0))
-                .categoria(categorias.get(0))
-                .conta(contaBase)
-                .titular(titularBase)
-                .build();
+                String sqlMeta = "UPDATE tb_meta SET nome = ?, valor_alvo = ?, valor_atual = ?, data_limite = ? WHERE id_meta = ?";
+                try (PreparedStatement pstmtMeta = conn.prepareStatement(sqlMeta)) {
+                    pstmtMeta.setString(1, metaEscolhida.getDescricao());
+                    pstmtMeta.setBigDecimal(2, metaEscolhida.getValorAlvo());
+                    pstmtMeta.setBigDecimal(3, metaEscolhida.getValorAtual());
+                    pstmtMeta.setDate(4, metaEscolhida.getDataLimite() != null ? java.sql.Date.valueOf(metaEscolhida.getDataLimite()) : null);
+                    pstmtMeta.setInt(5, metaEscolhida.getIdMeta());
+                    pstmtMeta.executeUpdate();
+                }
 
-        transacaoRepo.salvar(aporte);
+                // 2. Cria e guarda a transação de aporte
+                LocalDate ultimoDiaDoMes = mesAtual.withDayOfMonth(mesAtual.lengthOfMonth());
+
+                String sqlTransacao = """
+                    INSERT INTO tb_transacao 
+                    (descricao, valor, data_registo, data_cobranca, parcela_atual, total_parcelas, status, tipo, id_categoria, id_conta, id_titular, id_cartao, reembolsavel) 
+                    VAlUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """;
+
+                try (PreparedStatement pstmtTrans = conn.prepareStatement(sqlTransacao)) {
+                    pstmtTrans.setString(1, "Aporte: " + metaEscolhida.getDescricao());
+                    pstmtTrans.setBigDecimal(2, valorSobra);
+                    pstmtTrans.setDate(3, java.sql.Date.valueOf(LocalDate.now()));
+                    pstmtTrans.setDate(4, java.sql.Date.valueOf(ultimoDiaDoMes));
+                    pstmtTrans.setInt(5, 1);
+                    pstmtTrans.setInt(6, 1);
+                    pstmtTrans.setString(7, "PAGO");
+                    pstmtTrans.setString(8, "INVESTIMENTO");
+                    pstmtTrans.setInt(9, categorias.get(0).getIdCategoria());
+                    pstmtTrans.setInt(10, 1); // id_conta padrão
+                    pstmtTrans.setInt(11, 1); // id_titular padrão
+                    pstmtTrans.setInt(12, cartoes.get(0).getIdCartao());
+                    pstmtTrans.setInt(13, 0); // reembolsavel = falso
+                    pstmtTrans.executeUpdate();
+                }
+
+                // Se tudo correu bem, efetiva as alterações na base de dados
+                conn.commit();
+
+            } catch (Exception e) {
+                // Se ocorrer qualquer erro, desfaz todas as alterações feitas nesta transação
+                conn.rollback();
+                throw new Exception("Erro ao processar investimento, operação cancelada: " + e.getMessage(), e);
+            }
+
+        } catch (SQLException e) {
+            throw new Exception("Erro de ligação à base de dados: " + e.getMessage(), e);
+        }
     }
 }

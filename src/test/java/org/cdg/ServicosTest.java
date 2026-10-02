@@ -1,8 +1,5 @@
 package org.cdg;
 
-import org.cdg.model.Cartao;
-import org.cdg.model.Categoria;
-import org.cdg.model.Meta;
 import org.cdg.service.CartaoService;
 import org.cdg.service.CategoriaService;
 import org.cdg.service.MetaService;

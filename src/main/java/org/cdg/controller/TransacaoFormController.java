@@ -8,6 +8,8 @@ import javafx.stage.Stage;
 import org.cdg.model.*;
 import org.cdg.repository.CartaoRepository;
 import org.cdg.repository.CategoriaRepository;
+import org.cdg.service.CartaoService;
+import org.cdg.service.CategoriaService;
 import org.cdg.service.TransacaoService;
 import org.cdg.util.AlertHelper;
 
@@ -29,18 +31,19 @@ public class TransacaoFormController {
     private Transacao transacaoParaEditar = null;
     private final TransacaoService transacaoService = new TransacaoService(); // <-- Instância do Service
 
+    private final CartaoService cartaoService = new CartaoService();
+    private final CategoriaService categoriaService = new CategoriaService();
+
     @FXML
     public void initialize() {
         cbTipo.getSelectionModel().select("DESPESA");
 
         try {
-            // Mantemos a leitura simples de Cartões e Categorias para popular os ComboBoxes
-            CartaoRepository cartaoRepo = new CartaoRepository();
-            cbCartao.getItems().addAll(cartaoRepo.listarTodos());
+            // Agora usa os Services em vez de instanciar os Repositories diretamente
+            cbCartao.getItems().addAll(cartaoService.listarTodos());
             if (!cbCartao.getItems().isEmpty()) cbCartao.getSelectionModel().selectFirst();
 
-            CategoriaRepository catRepo = new CategoriaRepository();
-            cbCategoria.getItems().addAll(catRepo.listarTodas());
+            cbCategoria.getItems().addAll(categoriaService.listarTodas());
             if (!cbCategoria.getItems().isEmpty()) cbCategoria.getSelectionModel().selectFirst();
         } catch (Exception e) {
             AlertHelper.showError("Falha ao carregar opções", "Não foi possível carregar cartões e categorias:\n" + e.getMessage());
